@@ -10,16 +10,52 @@ use Illuminate\Support\Facades\Validator;
 
 class BusinessLeadController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $leads = BusinessLead::with('user')->get();
+        $query = BusinessLead::with('user');
+
+        //  Search
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('business_name', 'like', "%$search%")
+                    ->orWhere('business_email', 'like', "%$search%")
+                    ->orWhere('business_phone', 'like', "%$search%");
+            });
+        }
+
+        //  Filter: Business Type
+        if ($type = $request->input('business_type')) {
+            $query->where('business_type', $type);
+        }
+
+        //  Filter: Status
+        if ($status = $request->input('status')) {
+            $query->where('status', $status);
+        }
+
+        //  Filter: Location
+        if ($location = $request->input('location')) {
+            $query->where('location', $location);
+        }
+
+        //  Filter: Date Range
+        if ($from = $request->input('from_date')) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+        if ($to = $request->input('to_date')) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $leads = $query->latest()->get();
 
         return response()->json([
             'success' => true,
             'status' => 200,
+            'message' => 'Business leads retrieved successfully',
             'data' => $leads
         ]);
     }
+
 
     public function store(Request $request)
     {
