@@ -26,6 +26,8 @@ class User extends Authenticatable
         'is_suspended',
         'profile_image',
         'type',
+        'reg_user_id',
+        'is_subscribe',
     ];
 
     /**

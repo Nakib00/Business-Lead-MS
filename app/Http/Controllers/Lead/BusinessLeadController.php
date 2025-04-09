@@ -14,7 +14,7 @@ class BusinessLeadController extends Controller
     {
         $query = BusinessLead::with('user');
 
-        //  Search
+        // Search
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('business_name', 'like', "%$search%")
@@ -23,22 +23,22 @@ class BusinessLeadController extends Controller
             });
         }
 
-        //  Filter: Business Type
+        // Filter: Business Type
         if ($type = $request->input('business_type')) {
             $query->where('business_type', $type);
         }
 
-        //  Filter: Status
+        // Filter: Status
         if ($status = $request->input('status')) {
             $query->where('status', $status);
         }
 
-        //  Filter: Location
+        // Filter: Location
         if ($location = $request->input('location')) {
             $query->where('location', $location);
         }
 
-        //  Filter: Date Range
+        // Filter: Date Range
         if ($from = $request->input('from_date')) {
             $query->whereDate('created_at', '>=', $from);
         }
@@ -46,31 +46,58 @@ class BusinessLeadController extends Controller
             $query->whereDate('created_at', '<=', $to);
         }
 
-        $leads = $query->latest()->get();
+        // Always order by latest
+        $query->orderByDesc('created_at');
 
-        return response()->json([
-            'success' => true,
-            'status' => 200,
-            'message' => 'Business leads retrieved successfully',
-            'data' => $leads
-        ]);
+        // Pagination
+        $perPage = $request->input('limit');
+        $currentPage = $request->input('page');
+
+        if ($perPage && $currentPage) {
+            $leads = $query->paginate($perPage, ['*'], 'page', $currentPage);
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'Business leads retrieved successfully',
+                'data' => $leads->items(),
+                'pagination' => [
+                    'total_rows' => $leads->total(),
+                    'current_page' => $leads->currentPage(),
+                    'per_page' => $leads->perPage(),
+                    'total_pages' => $leads->lastPage(),
+                ],
+            ]);
+        } else {
+            $leads = $query->get();
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'Business leads retrieved successfully',
+                'data' => $leads
+            ]);
+        }
     }
+
+
 
 
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'business_name' => 'required|string|max:255',
-            'business_email' => 'nullable|email',
-            'business_phone' => 'nullable|string|max:20',
+            'business_name' => 'required|string|max:255|unique:business_leads,business_name',
+            'business_email' => 'nullable|email|unique:business_leads,business_email',
+            'business_phone' => 'nullable|string|max:20|unique:business_leads,business_phone',
             'business_type' => 'required|string',
-            'website_url' => 'nullable|url',
+            'website_url' => 'nullable|url|unique:business_leads,website_url',
             'location' => 'nullable|string|max:255',
             'source_of_data' => 'nullable|string|max:255',
             'status' => 'required|string',
             'note' => 'nullable|string',
             'user_id' => 'required|exists:users,id',
         ]);
+
 
         if ($validator->fails()) {
             return response()->json([

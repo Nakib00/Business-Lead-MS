@@ -21,6 +21,7 @@ class AuthController extends Controller
             'address' => 'nullable|string|max:255',
             'type' => 'required|string',
             'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'reg_user_id' => 'nullable|exists:users,id',
         ]);
 
         if ($validator->fails()) {
@@ -47,6 +48,8 @@ class AuthController extends Controller
             'type' => $request->type,
             'profile_image' => $imagePath,
             'is_suspended' => 0,
+            'reg_user_id' => $request->reg_user_id ?? null,
+            'is_subscribe' => 0, 
         ]);
 
         $token = $user->createToken('authToken')->plainTextToken;
@@ -61,6 +64,7 @@ class AuthController extends Controller
             ]
         ]);
     }
+
 
     public function login(Request $request)
     {
@@ -127,4 +131,86 @@ class AuthController extends Controller
             'message' => 'Logout successful'
         ]);
     }
+
+    public function index(Request $request)
+    {
+        $query = User::query();
+
+        // Search by name or email
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%");
+            });
+        }
+
+        // Sort by latest (descending order)
+        $query->orderBy('created_at', 'desc');
+
+        // Pagination
+        $perPage = $request->input('limit', 10);
+        $users = $query->paginate($perPage)->appends($request->all());
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Users retrieved successfully',
+            'data' => $users->items(),
+            'pagination' => [
+                'total_rows' => $users->total(),
+                'current_page' => $users->currentPage(),
+                'per_page' => $users->perPage(),
+                'total_pages' => $users->lastPage(),
+            ]
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        $user->delete();
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'User deleted successfully',
+        ]);
+    }
+
+
+    public function toggleSubscribe($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        $user->is_subscribe = $user->is_subscribe == 1 ? 0 : 1;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Subscription status updated successfully',
+            'data' => [
+                'id' => $user->id,
+                'is_subscribe' => $user->is_subscribe,
+            ]
+        ]);
+    }
+
 }
