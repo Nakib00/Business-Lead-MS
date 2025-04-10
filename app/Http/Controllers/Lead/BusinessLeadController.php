@@ -179,4 +179,41 @@ class BusinessLeadController extends Controller
             'message' => 'Lead deleted successfully'
         ]);
     }
+
+    public function totalLeadCount()
+    {
+        $count = BusinessLead::count();
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Total business leads count retrieved successfully',
+            'total_leads' => $count
+        ]);
+    }
+
+
+
+    public function userLeadCount($userId)
+    {
+        $user = User::find($userId);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        $count = BusinessLead::where('user_id', $userId)->count();
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => "Lead count for user ID: $userId",
+            'user_id' => $userId,
+            'lead_count' => $count
+        ]);
+    }
 }

@@ -22,6 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('{id}', [BusinessLeadController::class, 'show']);
         Route::put('{id}', [BusinessLeadController::class, 'update']);
         Route::delete('{id}', [BusinessLeadController::class, 'destroy']);
+        Route::get('/leads/count', [BusinessLeadController::class, 'totalLeadCount']);
+        Route::get('/count/{userId}', [BusinessLeadController::class, 'userLeadCount']);
     });
 });
-
