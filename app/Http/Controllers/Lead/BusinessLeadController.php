@@ -10,9 +10,16 @@ use Illuminate\Support\Facades\Validator;
 
 class BusinessLeadController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, $userId)
     {
+        $authUser = User::findOrFail($userId);
+
         $query = BusinessLead::with('user');
+
+        // Role-based access logic
+        if ($authUser->type === 'client' && $authUser->is_subscribe == 0) {
+            $query->select('business_name', 'business_type', 'status', 'created_at', 'updated_at', 'user_id');
+        }
 
         // Search
         if ($search = $request->input('search')) {
@@ -79,6 +86,7 @@ class BusinessLeadController extends Controller
             ]);
         }
     }
+
 
 
 
