@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\BusinessLead;
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
+use Maatwebsite\Excel\Facades\Excel;
 
 class BusinessLeadController extends Controller
 {
@@ -222,6 +223,62 @@ class BusinessLeadController extends Controller
             'message' => "Lead count for user ID: $userId",
             'user_id' => $userId,
             'lead_count' => $count
+        ]);
+    }
+
+    public function upload(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,xlsx,xls',
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $userId = $request->user_id;
+
+        $file = $request->file('file');
+        $data = [];
+
+        if ($file->getClientOriginalExtension() === 'csv') {
+            $data = array_map('str_getcsv', file($file));
+            $headers = array_map('strtolower', array_map('trim', $data[0]));
+            unset($data[0]); // Remove headers
+        } else {
+            $data = Excel::toArray([], $file)[0];
+            $headers = array_map('strtolower', array_map('trim', $data[0]));
+            unset($data[0]); // Remove headers
+        }
+
+        $inserted = 0;
+        foreach ($data as $row) {
+            $row = array_combine($headers, $row);
+            $row['user_id'] = $userId;
+
+            $validator = Validator::make($row, [
+                'business_name' => 'required|string|max:255|unique:business_leads,business_name',
+                'business_email' => 'nullable|email|unique:business_leads,business_email',
+                'business_phone' => 'nullable|string|max:20|unique:business_leads,business_phone',
+                'business_type' => 'required|string',
+                'website_url' => 'nullable|url|unique:business_leads,website_url',
+                'location' => 'nullable|string|max:255',
+                'source_of_data' => 'nullable|string|max:255',
+                'status' => 'required|string',
+                'note' => 'nullable|string',
+                'user_id' => 'required|exists:users,id',
+            ]);
+
+            if ($validator->fails()) {
+                // Optional: log or collect errors per row
+                continue;
+            }
+
+            BusinessLead::create($row);
+            $inserted++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => "$inserted leads uploaded successfully."
         ]);
     }
 }

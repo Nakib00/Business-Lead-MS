@@ -24,5 +24,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('{leads_id}', [BusinessLeadController::class, 'destroy']);
         Route::get('/leads/count', [BusinessLeadController::class, 'totalLeadCount']);
         Route::get('/count/{userId}', [BusinessLeadController::class, 'userLeadCount']);
+        Route::post('/leads/upload', [BusinessLeadController::class, 'upload']);
     });
 });
