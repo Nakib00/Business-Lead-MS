@@ -103,34 +103,49 @@ class TaskController extends Controller
     // get all tasks
     public function index(Request $request)
     {
-        $query = Task::with(['creator:id,name,email,phone,type,profile_image']);
+        $user = auth()->user();
 
-        // Filter by created_user_id
+        $query = Task::with(['creator:id,name,email,phone,type,profile_image', 'assignedUsers']);
+
+        // Role-based access
+        if (in_array($user->type, ['superadmin', 'admin'])) {
+            // Show all tasks
+        } elseif ($user->type === 'leader') {
+            // Tasks created by leader OR assigned to leader
+            $query->where(function ($q) use ($user) {
+                $q->where('created_user_id', $user->id)
+                    ->orWhereHas('assignedUsers', function ($subQuery) use ($user) {
+                        $subQuery->where('user_id', $user->id);
+                    });
+            });
+        } elseif ($user->type === 'member') {
+            // ✅ Only tasks where the user is assigned in the task_user_assigns table
+            $query->whereHas('assignedUsers', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            });
+        }
+
+        // Optional filters
         if ($request->has('created_user_id')) {
             $query->where('created_user_id', $request->created_user_id);
         }
 
-        // Search by title
         if ($request->has('search')) {
             $query->where('title', 'like', '%' . $request->search . '%');
         }
 
-        // Filter by status
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
 
-        // Filter by priority
         if ($request->has('priority')) {
             $query->where('priority', $request->priority);
         }
 
-        // Filter by due_date
         if ($request->has('due_date')) {
             $query->whereDate('due_date', $request->due_date);
         }
 
-        // Order (default: latest first)
         $query->orderBy('created_at', 'desc');
 
         $tasks = $query->get();
