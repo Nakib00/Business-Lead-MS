@@ -394,4 +394,113 @@ class TaskController extends Controller
             'data' => $task
         ]);
     }
+
+    // Delete task
+    public function destroy($id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $task = Task::findOrFail($id);
+
+            // Get all task_user_assigns related to this task
+            $taskUserAssigns = TaskUserAssign::where('task_id', $task->id)->get();
+
+            foreach ($taskUserAssigns as $assign) {
+                // Delete individual tasks related to this task_user_assign
+                IndvidualTask::where('task_user_assigns_id', $assign->id)->delete();
+            }
+
+            // Delete task_user_assigns
+            TaskUserAssign::where('task_id', $task->id)->delete();
+
+            // Delete the task itself
+            $task->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'Task and related data deleted successfully.',
+                'data' => $task
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'status' => 500,
+                'message' => 'Failed to delete task.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Delete individual task
+    public function individualDestroy($id)
+    {
+        $task = IndvidualTask::find($id);
+
+        if (!$task) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'Individual task not found.',
+                'data' => null
+            ], 404);
+        }
+
+        $task->delete();
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Individual task deleted successfully.',
+            'data' => $task
+        ]);
+    }
+
+    // Remove assigned user from task
+    public function removeAssignUser($id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $assignment = TaskUserAssign::find($id);
+
+            if (!$assignment) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 404,
+                    'message' => 'Task assignment not found.',
+                    'data' => null
+                ], 404);
+            }
+
+            // Delete related individual tasks
+            IndvidualTask::where('task_user_assigns_id', $assignment->id)
+                ->where('user_id', $assignment->user_id)
+                ->delete();
+
+            $assignment->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'Assigned user task and related individual tasks deleted successfully.',
+                'data' => $assignment
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'status' => 500,
+                'message' => 'Failed to delete assigned user task.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
