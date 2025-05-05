@@ -49,7 +49,7 @@ class AuthController extends Controller
             'profile_image' => $imagePath,
             'is_suspended' => 0,
             'reg_user_id' => $request->reg_user_id ?? null,
-            'is_subscribe' => 0, 
+            'is_subscribe' => 0,
         ]);
 
         $token = $user->createToken('authToken')->plainTextToken;
@@ -165,6 +165,63 @@ class AuthController extends Controller
         ]);
     }
 
+    // shwo user for admin
+    public function registeredUsers(Request $request, $userId)
+    {
+        // Verify the parent user exists
+        $parentUser = User::findOrFail($userId);
+
+        $query = User::where('reg_user_id', $userId);
+
+        // Search by name or email
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%")
+                    ->orWhere('phone', 'like', "%$search%");
+            });
+        }
+
+        // Filter by user type
+        if ($type = $request->input('type')) {
+            $query->where('type', $type);
+        }
+
+        // Filter by subscription status
+        if ($request->has('is_subscribe')) {
+            $isSubscribe = $request->input('is_subscribe');
+            $query->where('is_subscribe', $isSubscribe);
+        }
+
+        // Filter by suspension status
+        if ($request->has('is_suspended')) {
+            $isSuspended = $request->input('is_suspended');
+            $query->where('is_suspended', $isSuspended);
+        }
+
+        // Sort by latest (descending order) by default
+        $sortField = $request->input('sort_by', 'created_at');
+        $sortDirection = $request->input('sort_dir', 'desc');
+        $query->orderBy($sortField, $sortDirection);
+
+        // Pagination
+        $perPage = $request->input('limit', 10);
+        $users = $query->paginate($perPage)->appends($request->all());
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Registered users retrieved successfully',
+            'data' => $users->items(),
+            'pagination' => [
+                'total_rows' => $users->total(),
+                'current_page' => $users->currentPage(),
+                'per_page' => $users->perPage(),
+                'total_pages' => $users->lastPage(),
+            ]
+        ]);
+    }
+
     public function destroy($id)
     {
         $user = User::find($id);
@@ -212,5 +269,4 @@ class AuthController extends Controller
             ]
         ]);
     }
-
 }

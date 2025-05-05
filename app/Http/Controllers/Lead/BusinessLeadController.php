@@ -11,15 +11,102 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class BusinessLeadController extends Controller
 {
-    public function index(Request $request, $userId)
+    public function allBusinessLeads(Request $request)
+    {
+        $query = BusinessLead::with('user');
+
+        // Search
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('business_name', 'like', "%$search%")
+                    ->orWhere('business_email', 'like', "%$search%")
+                    ->orWhere('business_phone', 'like', "%$search%");
+            });
+        }
+
+        // Filter: Business Type
+        if ($type = $request->input('business_type')) {
+            $query->where('business_type', $type);
+        }
+
+        // Filter: Status
+        if ($status = $request->input('status')) {
+            $query->where('status', $status);
+        }
+
+        // Filter: Location
+        if ($location = $request->input('location')) {
+            $query->where('location', $location);
+        }
+
+        // Filter: Date Range
+        if ($from = $request->input('from_date')) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+        if ($to = $request->input('to_date')) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        // Filter by specific user
+        if ($userId = $request->input('user_id')) {
+            $query->where('user_id', $userId);
+        }
+
+        // Always order by latest
+        $query->orderByDesc('created_at');
+
+        // Pagination
+        $perPage = $request->input('limit');
+        $currentPage = $request->input('page');
+
+        if ($perPage && $currentPage) {
+            $leads = $query->paginate($perPage, ['*'], 'page', $currentPage);
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'All business leads retrieved successfully',
+                'data' => $leads->items(),
+                'pagination' => [
+                    'total_rows' => $leads->total(),
+                    'current_page' => $leads->currentPage(),
+                    'per_page' => $leads->perPage(),
+                    'total_pages' => $leads->lastPage(),
+                ],
+            ]);
+        } else {
+            $leads = $query->get();
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'All business leads retrieved successfully',
+                'data' => $leads
+            ]);
+        }
+    }
+
+
+    // shwo all leads for admin
+    public function showLeadAdmin(Request $request, $userId)
     {
         $authUser = User::findOrFail($userId);
 
         $query = BusinessLead::with('user');
 
-        // Role-based access logic
-        if ($authUser->type === 'client' && $authUser->is_subscribe == 0) {
-            $query->select('business_name', 'business_type', 'status', 'created_at', 'updated_at', 'user_id');
+        // Admin can see all leads created by them OR by users they registered
+        if ($authUser->type === 'admin') {
+            $query->where(function ($q) use ($authUser) {
+                // Get leads created by this admin
+                $q->where('user_id', $authUser->id)
+                    // OR get leads created by users registered by this admin
+                    ->orWhereHas('user', function ($subQuery) use ($authUser) {
+                        $subQuery->where('reg_user_id', $authUser->id);
+                    });
+            });
+        } else {
+            // Regular users can only see their own leads
+            $query->where('user_id', $authUser->id);
         }
 
         // Search
@@ -88,10 +175,80 @@ class BusinessLeadController extends Controller
         }
     }
 
+    // shwo leads to created user (mamber, leader)
+    public function createorLeads(Request $request, $userId)
+    {
+        // Verify user exists
+        $user = User::findOrFail($userId);
 
+        $query = BusinessLead::with('user')
+            ->where('user_id', $userId);
 
+        // Search
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('business_name', 'like', "%$search%")
+                    ->orWhere('business_email', 'like', "%$search%")
+                    ->orWhere('business_phone', 'like', "%$search%");
+            });
+        }
 
+        // Filter: Business Type
+        if ($type = $request->input('business_type')) {
+            $query->where('business_type', $type);
+        }
 
+        // Filter: Status
+        if ($status = $request->input('status')) {
+            $query->where('status', $status);
+        }
+
+        // Filter: Location
+        if ($location = $request->input('location')) {
+            $query->where('location', $location);
+        }
+
+        // Filter: Date Range
+        if ($from = $request->input('from_date')) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+        if ($to = $request->input('to_date')) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        // Always order by latest
+        $query->orderByDesc('created_at');
+
+        // Pagination
+        $perPage = $request->input('limit');
+        $currentPage = $request->input('page');
+
+        if ($perPage && $currentPage) {
+            $leads = $query->paginate($perPage, ['*'], 'page', $currentPage);
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'User business leads retrieved successfully',
+                'data' => $leads->items(),
+                'pagination' => [
+                    'total_rows' => $leads->total(),
+                    'current_page' => $leads->currentPage(),
+                    'per_page' => $leads->perPage(),
+                    'total_pages' => $leads->lastPage(),
+                ],
+            ]);
+        } else {
+            $leads = $query->get();
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'User business leads retrieved successfully',
+                'data' => $leads
+            ]);
+        }
+    }
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
