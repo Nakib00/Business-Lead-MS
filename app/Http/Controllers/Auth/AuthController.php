@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\JsonResponse;
 
 class AuthController extends Controller
 {
@@ -269,4 +270,27 @@ class AuthController extends Controller
             ]
         ]);
     }
+
+    // find total count of users and users type
+    public function countUser(): JsonResponse
+    {
+        $totalUsers = User::count();
+
+        $typeWiseCount = User::select('type')
+            ->selectRaw('count(*) as total')
+            ->groupBy('type')
+            ->get()
+            ->pluck('total', 'type');
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'User statistics fetched successfully',
+            'data' => [
+                'total_users' => $totalUsers,
+                'type_wise_count' => $typeWiseCount
+            ]
+        ]);
+    }
+
 }
