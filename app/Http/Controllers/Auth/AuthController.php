@@ -399,4 +399,62 @@ class AuthController extends Controller
         }
     }
 
+    // change password
+    public function changePassword(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 401,
+                    'message' => 'Unauthorized. User not authenticated.',
+                    'data' => null,
+                ], 401);
+            }
+
+            // Validate the input
+            $validated = $request->validate([
+                'current_password' => 'required|string|min:6',
+                'new_password' => 'required|string|min:6|confirmed',
+            ]);
+
+            // Check if current password is correct
+            if (!Hash::check($validated['current_password'], $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 403,
+                    'message' => 'Current password does not match.',
+                    'data' => null,
+                ], 403);
+            }
+
+            // Update password
+            $user->password = Hash::make($validated['new_password']);
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'Password changed successfully.',
+                'data' => null
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'status' => 422,
+                'message' => 'Validation error',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'status' => 500,
+                'message' => 'Something went wrong: ' . $e->getMessage(),
+                'data' => null,
+            ], 500);
+        }
+    }
+
 }

@@ -19,6 +19,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/toggle-subscribe/{id}', [AuthController::class, 'toggleSubscribe']);
         Route::get('/profile', [AuthController::class, 'profile']);
         Route::post('/profile/update', [AuthController::class, 'updateProfile']);
+        Route::post('/change-password', [AuthController::class, 'changePassword']);
     });
 
     Route::prefix('business-leads')->group(function () {
