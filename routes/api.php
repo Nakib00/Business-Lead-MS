@@ -17,6 +17,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/{userId}', [AuthController::class, 'registeredUsers']);
         Route::delete('/{id}', [AuthController::class, 'destroy']);
         Route::put('/toggle-subscribe/{id}', [AuthController::class, 'toggleSubscribe']);
+        Route::get('/profile', [AuthController::class, 'profile']);
     });
 
     Route::prefix('business-leads')->group(function () {

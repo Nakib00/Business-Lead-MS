@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
+use Exception;
 
 class AuthController extends Controller
 {
@@ -293,4 +295,43 @@ class AuthController extends Controller
         ]);
     }
 
+    // get user profile
+    public function profile()
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 401,
+                    'message' => 'Unauthorized. User not authenticated.',
+                    'data' => null,
+                ], 401);
+            }
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'Registered user retrieved successfully',
+                'data' => [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'address' => $user->address,
+                    'profile_image' => $user->profile_image ? Storage::url($user->profile_image) : null,
+                    'type' => $user->type,
+                    'reg_user_id' => $user->reg_user_id,
+                    'is_subscribe' => $user->is_subscribe,
+                ]
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'status' => 500,
+                'message' => 'Something went wrong: ' . $e->getMessage(),
+                'data' => null,
+            ], 500);
+        }
+    }
 }
