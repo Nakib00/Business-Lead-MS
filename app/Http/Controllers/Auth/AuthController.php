@@ -40,6 +40,7 @@ class AuthController extends Controller
 
         if ($request->hasFile('profile_image')) {
             $imagePath = $request->file('profile_image')->store('UserProfile', 'public');
+            $imagePathDB = env('APP_URL') . '/storage/app/public/' . $imagePath;
         }
 
         $user = User::create([
@@ -49,7 +50,7 @@ class AuthController extends Controller
             'phone' => $request->phone,
             'address' => $request->address,
             'type' => $request->type,
-            'profile_image' => $imagePath,
+            'profile_image' => $imagePathDB,
             'is_suspended' => 0,
             'reg_user_id' => $request->reg_user_id ?? null,
             'is_subscribe' => 0,
