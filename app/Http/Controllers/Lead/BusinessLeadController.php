@@ -259,7 +259,6 @@ class BusinessLeadController extends Controller
             'website_url' => 'nullable|url|unique:business_leads,website_url',
             'location' => 'nullable|string|max:255',
             'source_of_data' => 'nullable|string|max:255',
-            'status' => 'required|string',
             'note' => 'nullable|string',
             'user_id' => 'required|exists:users,id',
         ]);
@@ -270,18 +269,32 @@ class BusinessLeadController extends Controller
                 'success' => false,
                 'status' => 422,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
-        $lead = BusinessLead::create($request->all());
+        try {
+            $data = $request->all();
+            $data['status'] = 'new';
 
-        return response()->json([
-            'success' => true,
-            'status' => 201,
-            'message' => 'Business lead created successfully',
-            'data' => $lead
-        ]);
+            $lead = BusinessLead::create($data);
+
+            return response()->json([
+                'success' => true,
+                'status' => 201,
+                'message' => 'Business lead created successfully',
+                'data' => $lead,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('BusinessLead Creation Failed: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'status' => 500,
+                'message' => 'Something went wrong while creating the business lead',
+            ], 500);
+        }
+
     }
 
     public function show($id)
