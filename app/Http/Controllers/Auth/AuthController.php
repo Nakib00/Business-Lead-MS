@@ -8,6 +8,9 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
+use Exception;
 
 class AuthController extends Controller
 {
@@ -37,6 +40,7 @@ class AuthController extends Controller
 
         if ($request->hasFile('profile_image')) {
             $imagePath = $request->file('profile_image')->store('UserProfile', 'public');
+            $imagePathDB = env('APP_URL') . '/storage/app/public/' . $imagePath;
         }
 
         $user = User::create([
@@ -46,7 +50,7 @@ class AuthController extends Controller
             'phone' => $request->phone,
             'address' => $request->address,
             'type' => $request->type,
-            'profile_image' => $imagePath,
+            'profile_image' => $imagePathDB,
             'is_suspended' => 0,
             'reg_user_id' => $request->reg_user_id ?? null,
             'is_subscribe' => 0,
@@ -269,4 +273,189 @@ class AuthController extends Controller
             ]
         ]);
     }
+
+    // find total count of users and users type
+    public function countUser(): JsonResponse
+    {
+        $totalUsers = User::count();
+
+        $typeWiseCount = User::select('type')
+            ->selectRaw('count(*) as total')
+            ->groupBy('type')
+            ->get()
+            ->pluck('total', 'type');
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'User statistics fetched successfully',
+            'data' => [
+                'total_users' => $totalUsers,
+                'type_wise_count' => $typeWiseCount
+            ]
+        ]);
+    }
+
+    // get user profile
+    public function profile()
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 401,
+                    'message' => 'Unauthorized. User not authenticated.',
+                    'data' => null,
+                ], 401);
+            }
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'Registered user retrieved successfully',
+                'data' => [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'address' => $user->address,
+                    'profile_image' => $user->profile_image ? Storage::url($user->profile_image) : null,
+                    'type' => $user->type,
+                    'reg_user_id' => $user->reg_user_id,
+                    'is_subscribe' => $user->is_subscribe,
+                ]
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'status' => 500,
+                'message' => 'Something went wrong: ' . $e->getMessage(),
+                'data' => null,
+            ], 500);
+        }
+    }
+
+    // update user profile
+    public function updateProfile(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 401,
+                    'message' => 'Unauthorized. User not authenticated.',
+                    'data' => null,
+                ], 401);
+            }
+
+            // Validate the input
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|email|unique:users,email,' . $user->id,
+                'phone' => 'nullable|string|max:20',
+                'address' => 'nullable|string|max:255',
+                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            ]);
+
+            // Handle profile image upload
+            if ($request->hasFile('profile_image')) {
+                $image = $request->file('profile_image');
+                $imageName = time() . '_' . $image->getClientOriginalName();
+                $image->move(public_path('profile_images'), $imageName);
+                $validated['profile_image'] = 'profile_images/' . $imageName;
+            }
+
+            // Update user
+            $user->update($validated);
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'Profile updated successfully',
+                'data' => [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'address' => $user->address,
+                    'profile_image' => $user->profile_image,
+                ]
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'status' => 422,
+                'message' => 'Validation error',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'status' => 500,
+                'message' => 'Something went wrong: ' . $e->getMessage(),
+                'data' => null,
+            ], 500);
+        }
+    }
+
+    // change password
+    public function changePassword(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 401,
+                    'message' => 'Unauthorized. User not authenticated.',
+                    'data' => null,
+                ], 401);
+            }
+
+            // Validate the input
+            $validated = $request->validate([
+                'current_password' => 'required|string|min:6',
+                'new_password' => 'required|string|min:6|confirmed',
+            ]);
+
+            // Check if current password is correct
+            if (!Hash::check($validated['current_password'], $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 403,
+                    'message' => 'Current password does not match.',
+                    'data' => null,
+                ], 403);
+            }
+
+            // Update password
+            $user->password = Hash::make($validated['new_password']);
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'Password changed successfully.',
+                'data' => null
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'status' => 422,
+                'message' => 'Validation error',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'status' => 500,
+                'message' => 'Something went wrong: ' . $e->getMessage(),
+                'data' => null,
+            ], 500);
+        }
+    }
+
 }
