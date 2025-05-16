@@ -410,6 +410,11 @@ class BusinessLeadController extends Controller
             $row = array_combine($headers, $row);
             $row['user_id'] = $userId;
 
+            // Set default 'status' to 'new' if not present
+            if (!isset($row['status']) || empty($row['status'])) {
+                $row['status'] = 'new';
+            }
+
             $validator = Validator::make($row, [
                 'business_name' => 'required|string|max:255|unique:business_leads,business_name',
                 'business_email' => 'nullable|email|unique:business_leads,business_email',
@@ -418,7 +423,7 @@ class BusinessLeadController extends Controller
                 'website_url' => 'nullable|url|unique:business_leads,website_url',
                 'location' => 'nullable|string|max:255',
                 'source_of_data' => 'nullable|string|max:255',
-                'status' => 'required|string',
+                'status' => 'string', // Changed from 'required|string'
                 'note' => 'nullable|string',
                 'user_id' => 'required|exists:users,id',
             ]);
