@@ -64,7 +64,7 @@ class AuthController extends Controller
             'message' => 'Registration successful',
             'data' => [
                 'token' => $token,
-                'admin' => $this->formatUser($user),
+                'user' => $this->formatUser($user),
             ]
         ]);
     }
@@ -103,7 +103,7 @@ class AuthController extends Controller
             'message' => 'Login successful',
             'data' => [
                 'token' => $token,
-                'admin' => $this->formatUser($user),
+                'user' => $this->formatUser($user),
             ]
         ]);
     }
