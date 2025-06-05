@@ -12,6 +12,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::prefix('users')->group(function () {
         Route::get('/', [AuthController::class, 'index']);
+        Route::get('/admins', [AuthController::class, 'getAdmins']);
         Route::get('/count', [AuthController::class, 'countUser']);
         Route::get('/admin/{userId}', [AuthController::class, 'registeredUsers']);
         Route::delete('/{id}', [AuthController::class, 'destroy']);

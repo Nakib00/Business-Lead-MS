@@ -144,6 +144,31 @@ class AuthController extends Controller
         }
     }
 
+
+    // get all admins
+    public function getAdmins(Request $request)
+    {
+        $query = User::query()->where('type', 'admin');
+
+        // Optional: Search by name, email, or phone
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%")
+                    ->orWhere('phone', 'like', "%$search%");
+            });
+        }
+
+        // Pagination
+        $perPage = $request->input('limit', 10); // Default 10
+        $currentPage = $request->input('page', 1); // Default 1
+
+        $pagination = $query->paginate($perPage, ['*'], 'page', $currentPage);
+        $data = $pagination->items();
+
+        return $this->paginatedResponse($data, $pagination, 'Admin users retrieved successfully');
+    }
+
     // show user for admin
     public function registeredUsers(Request $request, $userId)
     {
