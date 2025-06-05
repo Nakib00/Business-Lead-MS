@@ -8,8 +8,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Exception;
 
 class AuthController extends Controller
@@ -36,11 +36,11 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $imagePath = null;
+        $imagePathDB = null;
 
         if ($request->hasFile('profile_image')) {
             $imagePath = $request->file('profile_image')->store('UserProfile', 'public');
-            $imagePathDB = env('APP_URL') . '/storage/app/public/' . $imagePath;
+            $imagePathDB = env('APP_URL') . '/storage/' . $imagePath;
         }
 
         $user = User::create([
@@ -56,30 +56,21 @@ class AuthController extends Controller
             'is_subscribe' => 0,
         ]);
 
-        $token = $user->createToken('authToken')->plainTextToken;
+        $token = JWTAuth::fromUser($user);
 
-        return response()->json([
-            'success' => true,
-            'status' => 200,
-            'message' => 'Registration successful',
-            'data' => [
-                'token' => $token,
-                'user' => $this->formatUser($user),
-            ]
-        ]);
+        $data = [
+            'token' => $token,
+            'user' => $this->formatUser($user),
+        ];
+
+        return $this->successResponse($data, 'Registration successful', 201);
     }
-
 
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string',
-        ]);
+        $credentials = $request->only('email', 'password');
 
-        $user = User::where('email', $request->email)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$token = JWTAuth::attempt($credentials)) {
             return response()->json([
                 'success' => false,
                 'status' => 401,
@@ -87,25 +78,17 @@ class AuthController extends Controller
             ], 401);
         }
 
+        $user = Auth::user();
+
         if ($user->is_suspended) {
-            return response()->json([
-                'success' => false,
-                'status' => 403,
-                'message' => 'User account is suspended',
-            ], 403);
+            return $this->errorResponse('Your account is suspended. Please contact support.', 403);
         }
 
-        $token = $user->createToken('authToken')->plainTextToken;
-
-        return response()->json([
-            'success' => true,
-            'status' => 200,
-            'message' => 'Login successful',
-            'data' => [
-                'token' => $token,
-                'user' => $this->formatUser($user),
-            ]
-        ]);
+        $data = [
+            'token' => $token,
+            'user' => $this->formatUser($user),
+        ];
+        return $this->successResponse($data, 'Login successful', 200);
     }
 
     private function formatUser($user)
@@ -114,26 +97,19 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'fcm_token' => null,
-            'auth_token' => null,
+            'phone' => $user->phone,
+            'address' => $user->address,
             'type' => $user->type,
-            'status' => $user->is_suspended == 0 ? '1' : '0',
-            'admin_image' => $user->profile_image,
-            'role' => $user->type,
-            'created_at' => $user->created_at,
-            'updated_at' => $user->updated_at,
+            'profile_image' => $user->profile_image,
+            'is_subscribe' => $user->is_subscribe,
+            'is_suspended' => $user->is_suspended,
         ];
     }
-
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json([
-            'success' => true,
-            'status' => 200,
-            'message' => 'Logout successful'
-        ]);
+        return $this->successResponse(null, 'Logout successful', 200);
     }
 
     public function index(Request $request)
@@ -169,7 +145,7 @@ class AuthController extends Controller
         ]);
     }
 
-    // shwo user for admin
+    // show user for admin
     public function registeredUsers(Request $request, $userId)
     {
         // Verify the parent user exists
@@ -231,20 +207,12 @@ class AuthController extends Controller
         $user = User::find($id);
 
         if (!$user) {
-            return response()->json([
-                'success' => false,
-                'status' => 404,
-                'message' => 'User not found',
-            ], 404);
+            return $this->errorResponse('User not found', 404);
         }
 
         $user->delete();
 
-        return response()->json([
-            'success' => true,
-            'status' => 200,
-            'message' => 'User deleted successfully',
-        ]);
+        return $this->successResponse(null, 'User deleted successfully', 200);
     }
 
 
@@ -253,11 +221,7 @@ class AuthController extends Controller
         $user = User::find($id);
 
         if (!$user) {
-            return response()->json([
-                'success' => false,
-                'status' => 404,
-                'message' => 'User not found',
-            ], 404);
+            return $this->errorResponse('User not found', 404);
         }
 
         $user->is_subscribe = $user->is_subscribe == 1 ? 0 : 1;
@@ -275,7 +239,7 @@ class AuthController extends Controller
     }
 
     // find total count of users and users type
-    public function countUser(): JsonResponse
+    public function countUser()
     {
         $totalUsers = User::count();
 
