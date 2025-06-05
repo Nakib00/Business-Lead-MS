@@ -16,55 +16,67 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string|max:255',
-            'type' => 'required|string',
-            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'reg_user_id' => 'nullable|exists:users,id',
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users',
+                'password' => 'required|string|min:6|confirmed',
+                'phone' => 'nullable|string|max:20',
+                'address' => 'nullable|string|max:255',
+                'type' => 'required|string',
+                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'reg_user_id' => 'nullable|exists:users,id',
+            ]);
 
-        if ($validator->fails()) {
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 422,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $imagePathDB = null;
+
+            if ($request->hasFile('profile_image')) {
+                $imagePath = $request->file('profile_image')->store('UserProfile', 'public');
+                $imagePathDB = env('APP_URL') . '/storage/' . $imagePath;
+            }
+
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'phone' => $request->phone,
+                'address' => $request->address,
+                'type' => $request->type,
+                'profile_image' => $imagePathDB,
+                'is_suspended' => 0,
+                'reg_user_id' => $request->reg_user_id ?? null,
+                'is_subscribe' => 0,
+            ]);
+
+            $token = JWTAuth::fromUser($user);
+
+            $data = [
+                'token' => $token,
+                'user' => $this->formatUser($user),
+            ];
+
+            return $this->successResponse($data, 'Registration successful', 201);
+        } catch (\Exception $e) {
+            \Log::error('Register Error: ' . $e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'status' => 422,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
+                'status' => 500,
+                'message' => 'Something went wrong',
+                'errors' => $e->getMessage() // This will now show the actual error
+            ], 500);
         }
-
-        $imagePathDB = null;
-
-        if ($request->hasFile('profile_image')) {
-            $imagePath = $request->file('profile_image')->store('UserProfile', 'public');
-            $imagePathDB = env('APP_URL') . '/storage/' . $imagePath;
-        }
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'phone' => $request->phone,
-            'address' => $request->address,
-            'type' => $request->type,
-            'profile_image' => $imagePathDB,
-            'is_suspended' => 0,
-            'reg_user_id' => $request->reg_user_id ?? null,
-            'is_subscribe' => 0,
-        ]);
-
-        $token = JWTAuth::fromUser($user);
-
-        $data = [
-            'token' => $token,
-            'user' => $this->formatUser($user),
-        ];
-
-        return $this->successResponse($data, 'Registration successful', 201);
     }
+
 
     public function login(Request $request)
     {
@@ -107,9 +119,17 @@ class AuthController extends Controller
     }
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
-
-        return $this->successResponse(null, 'Logout successful', 200);
+        try {
+            JWTAuth::invalidate(JWTAuth::getToken());
+            return $this->successResponse(null, 'Logout successful', 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'status' => 500,
+                'message' => 'Error during logout',
+                'errors' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function index(Request $request)
