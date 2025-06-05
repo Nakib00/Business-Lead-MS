@@ -11,9 +11,11 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Exception;
+use App\Traits\ApiResponseTrait;
 
 class AuthController extends Controller
 {
+    use ApiResponseTrait;
     public function register(Request $request)
     {
         try {
@@ -29,12 +31,7 @@ class AuthController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'status' => 422,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
+                return $this->errorResponse('Validation error', $validator->errors(), 422);
             }
 
             $imagePathDB = null;
@@ -65,15 +62,10 @@ class AuthController extends Controller
             ];
 
             return $this->successResponse($data, 'Registration successful', 201);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             \Log::error('Register Error: ' . $e->getMessage());
 
-            return response()->json([
-                'success' => false,
-                'status' => 500,
-                'message' => 'Something went wrong',
-                'errors' => $e->getMessage() // This will now show the actual error
-            ], 500);
+            return $this->errorResponse('Registration failed', $e->getMessage(), 500);
         }
     }
 
@@ -83,11 +75,7 @@ class AuthController extends Controller
         $credentials = $request->only('email', 'password');
 
         if (!$token = JWTAuth::attempt($credentials)) {
-            return response()->json([
-                'success' => false,
-                'status' => 401,
-                'message' => 'Invalid credentials',
-            ], 401);
+            return $this->errorResponse('Invalid credentials', 401);
         }
 
         $user = Auth::user();
@@ -122,104 +110,93 @@ class AuthController extends Controller
         try {
             JWTAuth::invalidate(JWTAuth::getToken());
             return $this->successResponse(null, 'Logout successful', 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'status' => 500,
-                'message' => 'Error during logout',
-                'errors' => $e->getMessage()
-            ], 500);
+        } catch (Exception $e) {
+            return $this->errorResponse('Error during logout', $e->getMessage(), 500);
         }
     }
 
     public function index(Request $request)
     {
-        $query = User::query();
+        try {
+            $query = User::query();
 
-        // Search by name or email
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%$search%")
-                    ->orWhere('email', 'like', "%$search%");
-            });
+            // Search by name or email
+            if ($search = $request->input('search')) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%$search%")
+                        ->orWhere('email', 'like', "%$search%");
+                });
+            }
+
+            // Sort by latest (descending order)
+            $query->orderBy('created_at', 'desc');
+
+            // Pagination
+            $perPage = $request->input('limit', 10);
+            $users = $query->paginate($perPage)->appends($request->all());
+
+            // Use the paginatedResponse method from the trait
+            return $this->paginatedResponse($users->items(), $users, 'Users retrieved successfully');
+
+        } catch (Exception $e) {
+            // Use the serverErrorResponse for any unexpected errors
+            return $this->serverErrorResponse('An error occurred while fetching users.', $e->getMessage());
         }
-
-        // Sort by latest (descending order)
-        $query->orderBy('created_at', 'desc');
-
-        // Pagination
-        $perPage = $request->input('limit', 10);
-        $users = $query->paginate($perPage)->appends($request->all());
-
-        return response()->json([
-            'success' => true,
-            'status' => 200,
-            'message' => 'Users retrieved successfully',
-            'data' => $users->items(),
-            'pagination' => [
-                'total_rows' => $users->total(),
-                'current_page' => $users->currentPage(),
-                'per_page' => $users->perPage(),
-                'total_pages' => $users->lastPage(),
-            ]
-        ]);
     }
 
     // show user for admin
     public function registeredUsers(Request $request, $userId)
     {
-        // Verify the parent user exists
-        $parentUser = User::findOrFail($userId);
+        try {
+            // Verify the parent user exists, will throw an exception if not found
+            User::findOrFail($userId);
 
-        $query = User::where('reg_user_id', $userId);
+            $query = User::where('reg_user_id', $userId);
 
-        // Search by name or email
-        if ($search = $request->input('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%$search%")
-                    ->orWhere('email', 'like', "%$search%")
-                    ->orWhere('phone', 'like', "%$search%");
-            });
+            // Search by name or email
+            if ($search = $request->input('search')) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%$search%")
+                        ->orWhere('email', 'like', "%$search%")
+                        ->orWhere('phone', 'like', "%$search%");
+                });
+            }
+
+            // Filter by user type
+            if ($type = $request->input('type')) {
+                $query->where('type', $type);
+            }
+
+            // Filter by subscription status
+            if ($request->has('is_subscribe')) {
+                $isSubscribe = $request->input('is_subscribe');
+                $query->where('is_subscribe', $isSubscribe);
+            }
+
+            // Filter by suspension status
+            if ($request->has('is_suspended')) {
+                $isSuspended = $request->input('is_suspended');
+                $query->where('is_suspended', $isSuspended);
+            }
+
+            // Sort by latest (descending order) by default
+            $sortField = $request->input('sort_by', 'created_at');
+            $sortDirection = $request->input('sort_dir', 'desc');
+            $query->orderBy($sortField, $sortDirection);
+
+            // Pagination
+            $perPage = $request->input('limit', 10);
+            $users = $query->paginate($perPage)->appends($request->all());
+
+            // Use the paginatedResponse method from the trait
+            return $this->paginatedResponse($users->items(), $users, 'Registered users retrieved successfully');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->notFoundResponse('The parent user with the specified ID was not found.');
+        } catch (Exception $e) {
+            // Use the serverErrorResponse for any other unexpected errors
+            return $this->serverErrorResponse('An error occurred while fetching registered users.', $e->getMessage());
         }
-
-        // Filter by user type
-        if ($type = $request->input('type')) {
-            $query->where('type', $type);
-        }
-
-        // Filter by subscription status
-        if ($request->has('is_subscribe')) {
-            $isSubscribe = $request->input('is_subscribe');
-            $query->where('is_subscribe', $isSubscribe);
-        }
-
-        // Filter by suspension status
-        if ($request->has('is_suspended')) {
-            $isSuspended = $request->input('is_suspended');
-            $query->where('is_suspended', $isSuspended);
-        }
-
-        // Sort by latest (descending order) by default
-        $sortField = $request->input('sort_by', 'created_at');
-        $sortDirection = $request->input('sort_dir', 'desc');
-        $query->orderBy($sortField, $sortDirection);
-
-        // Pagination
-        $perPage = $request->input('limit', 10);
-        $users = $query->paginate($perPage)->appends($request->all());
-
-        return response()->json([
-            'success' => true,
-            'status' => 200,
-            'message' => 'Registered users retrieved successfully',
-            'data' => $users->items(),
-            'pagination' => [
-                'total_rows' => $users->total(),
-                'current_page' => $users->currentPage(),
-                'per_page' => $users->perPage(),
-                'total_pages' => $users->lastPage(),
-            ]
-        ]);
     }
 
     public function destroy($id)
@@ -247,15 +224,11 @@ class AuthController extends Controller
         $user->is_subscribe = $user->is_subscribe == 1 ? 0 : 1;
         $user->save();
 
-        return response()->json([
-            'success' => true,
-            'status' => 200,
-            'message' => 'Subscription status updated successfully',
-            'data' => [
-                'id' => $user->id,
-                'is_subscribe' => $user->is_subscribe,
-            ]
-        ]);
+        $data = [
+            'id' => $user->id,
+            'is_subscribe' => $user->is_subscribe,
+        ];
+        return $this->successResponse($data, 'Subscription status updated successfully', 200);
     }
 
     // find total count of users and users type
@@ -269,15 +242,12 @@ class AuthController extends Controller
             ->get()
             ->pluck('total', 'type');
 
-        return response()->json([
-            'success' => true,
-            'status' => 200,
-            'message' => 'User statistics fetched successfully',
-            'data' => [
-                'total_users' => $totalUsers,
-                'type_wise_count' => $typeWiseCount
-            ]
-        ]);
+
+        $data = [
+            'total_users' => $totalUsers,
+            'type_wise_count' => $typeWiseCount
+        ];
+        return $this->successResponse($data, 'User statistics fetched successfully', 200);
     }
 
     // get user profile
@@ -287,36 +257,23 @@ class AuthController extends Controller
             $user = Auth::user();
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'status' => 401,
-                    'message' => 'Unauthorized. User not authenticated.',
-                    'data' => null,
-                ], 401);
+                return $this->errorResponse('Unauthorized. User not authenticated.', 401);
             }
 
-            return response()->json([
-                'success' => true,
-                'status' => 200,
-                'message' => 'Registered user retrieved successfully',
-                'data' => [
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'phone' => $user->phone,
-                    'address' => $user->address,
-                    'profile_image' => $user->profile_image ? Storage::url($user->profile_image) : null,
-                    'type' => $user->type,
-                    'reg_user_id' => $user->reg_user_id,
-                    'is_subscribe' => $user->is_subscribe,
-                ]
-            ]);
+            $data = [
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'address' => $user->address,
+                'profile_image' => $user->profile_image ? Storage::url($user->profile_image) : null,
+                'type' => $user->type,
+                'reg_user_id' => $user->reg_user_id,
+                'is_subscribe' => $user->is_subscribe,
+            ];
+
+            return $this->successResponse($data, 'User profile retrieved successfully', 200);
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'status' => 500,
-                'message' => 'Something went wrong: ' . $e->getMessage(),
-                'data' => null,
-            ], 500);
+            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
         }
     }
 
@@ -327,12 +284,7 @@ class AuthController extends Controller
             $user = Auth::user();
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'status' => 401,
-                    'message' => 'Unauthorized. User not authenticated.',
-                    'data' => null,
-                ], 401);
+                return $this->errorResponse('Unauthorized. User not authenticated.', 401);
             }
 
             // Validate the input
@@ -355,32 +307,19 @@ class AuthController extends Controller
             // Update user
             $user->update($validated);
 
-            return response()->json([
-                'success' => true,
-                'status' => 200,
-                'message' => 'Profile updated successfully',
-                'data' => [
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'phone' => $user->phone,
-                    'address' => $user->address,
-                    'profile_image' => $user->profile_image,
-                ]
-            ]);
+
+            $data = [
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'address' => $user->address,
+                'profile_image' => $user->profile_image,
+            ];
+            return $this->successResponse($data, 'Profile updated successfully', 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'status' => 422,
-                'message' => 'Validation error',
-                'errors' => $e->errors(),
-            ], 422);
+            return $this->errorResponse('Validation error', $e->errors(), 422);
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'status' => 500,
-                'message' => 'Something went wrong: ' . $e->getMessage(),
-                'data' => null,
-            ], 500);
+            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
         }
     }
 
@@ -391,13 +330,9 @@ class AuthController extends Controller
             $user = Auth::user();
 
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'status' => 401,
-                    'message' => 'Unauthorized. User not authenticated.',
-                    'data' => null,
-                ], 401);
+                return $this->errorResponse('Unauthorized. User not authenticated.', 401);
             }
+
 
             // Validate the input
             $validated = $request->validate([
@@ -407,39 +342,18 @@ class AuthController extends Controller
 
             // Check if current password is correct
             if (!Hash::check($validated['current_password'], $user->password)) {
-                return response()->json([
-                    'success' => false,
-                    'status' => 403,
-                    'message' => 'Current password does not match.',
-                    'data' => null,
-                ], 403);
+                return $this->errorResponse('Current password is incorrect', 422);
             }
 
             // Update password
             $user->password = Hash::make($validated['new_password']);
             $user->save();
 
-            return response()->json([
-                'success' => true,
-                'status' => 200,
-                'message' => 'Password changed successfully.',
-                'data' => null
-            ]);
+            return $this->successResponse(null, 'Password changed successfully', 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'status' => 422,
-                'message' => 'Validation error',
-                'errors' => $e->errors(),
-            ], 422);
+            return $this->errorResponse('Validation error', $e->errors(), 422);
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'status' => 500,
-                'message' => 'Something went wrong: ' . $e->getMessage(),
-                'data' => null,
-            ], 500);
+            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
         }
     }
-
 }
