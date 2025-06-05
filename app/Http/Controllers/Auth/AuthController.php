@@ -38,7 +38,7 @@ class AuthController extends Controller
 
             if ($request->hasFile('profile_image')) {
                 $imagePath = $request->file('profile_image')->store('UserProfile', 'public');
-                $imagePathDB = env('APP_URL') . '/storage/' . $imagePath;
+                $imagePathDB = env('APP_URL') . '/storage/app/public/UserProfile/' . $imagePath;
             }
 
             $user = User::create([
