@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Lead\BusinessLeadController;
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth:api')->group(function () {
 
     Route::prefix('business-leads')->group(function () {
         Route::post('/', [BusinessLeadController::class, 'store']);

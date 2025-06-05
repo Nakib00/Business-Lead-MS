@@ -5,7 +5,7 @@ use App\Http\Controllers\Task\TaskController;
 
 
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth:api')->group(function () {
     // Task routes
     Route::prefix('tasks')->group(function () {
         Route::post('/', [TaskController::class, 'store']);
