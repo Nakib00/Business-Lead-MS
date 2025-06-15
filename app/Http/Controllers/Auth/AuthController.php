@@ -31,8 +31,10 @@ class AuthController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation error', $validator->errors()->first(), 422);
+                $firstError = $validator->errors()->first();
+                return $this->errorResponse('Validation error', $firstError, 422);
             }
+
 
 
             $imagePathDB = null;
