@@ -32,9 +32,8 @@ class AuthController extends Controller
 
             if ($validator->fails()) {
                 $firstError = $validator->errors()->first();
-                return $this->errorResponse('Validation error', "The email has already been taken.", 422);
+                return $this->errorResponse('Validation error', $firstError, 422);
             }
-
 
 
             $imagePathDB = null;
