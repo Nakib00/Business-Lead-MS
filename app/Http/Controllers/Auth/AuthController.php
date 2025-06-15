@@ -31,10 +31,9 @@ class AuthController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->errorResponse('Validation error', $validator->errors()->implode(' ', ' '), 422);
-
-
+                return $this->errorResponse('Validation error', $validator->errors()->first(), 422);
             }
+
 
             $imagePathDB = null;
 
@@ -67,7 +66,7 @@ class AuthController extends Controller
         } catch (Exception $e) {
             \Log::error('Register Error: ' . $e->getMessage());
 
-            return $this->errorResponse('Registration failed', $e->getMessage(), 500);
+            return $this->errorResponse('Registration failed', "Something went wrong here...", 500);
         }
     }
 

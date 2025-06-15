@@ -31,16 +31,17 @@ trait ApiResponseTrait
      * @param int $statusCode
      * @return \Illuminate\Http\JsonResponse
      */
-    protected function errorResponse(string $message = 'Error', $errors = null, int $statusCode = 400)
+    protected function errorResponse($message = 'Error', $errors = null, $statusCode = 400)
     {
         return response()->json([
             'success' => false,
             'status' => $statusCode,
             'message' => $message,
             'data' => null,
-            'errors' => $errors
+            'errors' => $errors,
         ], $statusCode);
     }
+
 
     /**
      * Validation Error Response
