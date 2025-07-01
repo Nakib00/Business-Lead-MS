@@ -294,7 +294,6 @@ class BusinessLeadController extends Controller
                 'message' => 'Something went wrong while creating the business lead',
             ], 500);
         }
-
     }
 
     public function show($id)
@@ -321,22 +320,25 @@ class BusinessLeadController extends Controller
         $lead = BusinessLead::find($id);
 
         if (!$lead) {
-            return response()->json([
-                'success' => false,
-                'status' => 404,
-                'message' => 'Lead not found'
-            ]);
+            return $this->notfoundResponse('Lead not found');
         }
 
-        $lead->update($request->all());
-
-        return response()->json([
-            'success' => true,
-            'status' => 200,
-            'message' => 'Business lead updated successfully',
-            'data' => $lead
+        $data = $request->only([
+            'business_name',
+            'business_email',
+            'business_phone',
+            'business_type',
+            'website_url',
+            'location',
+            'source_of_data',
+            'note'
         ]);
+
+        $lead->update($data);
+
+        return $this->successResponse('Lead updated successfully', $lead);
     }
+
 
     public function destroy($id)
     {
