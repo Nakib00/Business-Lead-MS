@@ -139,7 +139,6 @@ class AuthController extends Controller
 
             // Use the paginatedResponse method from the trait
             return $this->paginatedResponse($users->items(), $users, 'Users retrieved successfully');
-
         } catch (Exception $e) {
             // Use the serverErrorResponse for any unexpected errors
             return $this->serverErrorResponse('An error occurred while fetching users.', $e->getMessage());
@@ -217,7 +216,6 @@ class AuthController extends Controller
 
             // Use the paginatedResponse method from the trait
             return $this->paginatedResponse($users->items(), $users, 'Registered users retrieved successfully');
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->notFoundResponse('The parent user with the specified ID was not found.');
         } catch (Exception $e) {
@@ -305,16 +303,22 @@ class AuthController extends Controller
     }
 
     // update user profile
-    public function updateProfile(Request $request)
+    public function updateProfile(Request $request, $userId)
     {
         try {
-            $user = Auth::user();
+            $authUser = Auth::user();
 
-            if (!$user) {
+            if (!$authUser) {
                 return $this->errorResponse('Unauthorized. User not authenticated.', 401);
             }
 
-            // Validate the input
+            $user = User::find($userId);
+
+            if (!$user) {
+                return $this->errorResponse('User not found.', 404);
+            }
+
+            // Validate request
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email,' . $user->id,
@@ -331,24 +335,22 @@ class AuthController extends Controller
                 $validated['profile_image'] = 'profile_images/' . $imageName;
             }
 
-            // Update user
             $user->update($validated);
 
-
-            $data = [
+            return $this->successResponse([
                 'name' => $user->name,
                 'email' => $user->email,
                 'phone' => $user->phone,
                 'address' => $user->address,
                 'profile_image' => $user->profile_image,
-            ];
-            return $this->successResponse($data, 'Profile updated successfully', 200);
+            ], 'Profile updated successfully', 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse('Validation error', $e->errors(), 422);
         } catch (Exception $e) {
             return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
         }
     }
+
 
     // change password
     public function changePassword(Request $request)

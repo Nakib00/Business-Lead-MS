@@ -15,10 +15,10 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/admins', [AuthController::class, 'getAdmins']);
         Route::get('/count', [AuthController::class, 'countUser']);
         Route::get('/admin/{userId}', [AuthController::class, 'registeredUsers']);
-        Route::delete('/{id}', [AuthController::class, 'destroy']);
-        Route::put('/toggle-subscribe/{id}', [AuthController::class, 'toggleSubscribe']);
+        Route::delete('/{userid}', [AuthController::class, 'destroy']);
+        Route::put('/toggle-subscribe/{userid}', [AuthController::class, 'toggleSubscribe']);
         Route::get('/profile', [AuthController::class, 'profile']);
-        Route::post('/profile/update', [AuthController::class, 'updateProfile']);
+        Route::post('/profile/update/{userId}', [AuthController::class, 'updateProfile']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
     });
 });
