@@ -348,6 +348,37 @@ class BusinessLeadController extends Controller
         ]);
     }
 
+    // update lead status
+    public function updateStatus(Request $request, $id)
+    {
+        $lead = BusinessLead::find($id);
+
+        if (!$lead) {
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'Lead not found'
+            ]);
+        }
+
+        // Validate input
+        $request->validate([
+            'status' => 'required|string|max:255'
+        ]);
+
+        // Update only the status
+        $lead->status = $request->status;
+        $lead->save();
+
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Status updated successfully',
+            'data' => $lead
+        ]);
+    }
+
+
 
     public function destroy($id)
     {

@@ -12,6 +12,7 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/creator/{userId}', [BusinessLeadController::class, 'createorLeads']);
         Route::get('{leads_id}', [BusinessLeadController::class, 'show']);
         Route::put('{leads_id}', [BusinessLeadController::class, 'update']);
+        Route::put('/status/{id}', [BusinessLeadController::class, 'updateStatus']);
         Route::delete('{leads_id}', [BusinessLeadController::class, 'destroy']);
         Route::get('/leads/count', [BusinessLeadController::class, 'totalLeadCount']);
         Route::get('/count/{userId}', [BusinessLeadController::class, 'userLeadCount']);
