@@ -320,7 +320,11 @@ class BusinessLeadController extends Controller
         $lead = BusinessLead::find($id);
 
         if (!$lead) {
-            return $this->notfoundResponse('Lead not found');
+            return response()->json([
+                'success' => false,
+                'status' => 404,
+                'message' => 'Lead not found'
+            ]);
         }
 
         $data = $request->only([
@@ -336,7 +340,12 @@ class BusinessLeadController extends Controller
 
         $lead->update($data);
 
-        return $this->successResponse('Lead updated successfully', $lead);
+        return response()->json([
+            'success' => true,
+            'status' => 200,
+            'message' => 'Business lead updated successfully',
+            'data' => $lead
+        ]);
     }
 
 
