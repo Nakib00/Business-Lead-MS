@@ -9,9 +9,11 @@ use App\Models\FormField;
 use App\Models\FormSubmission;
 use App\Models\SubmissionData;
 use Illuminate\Support\Facades\Storage;
+use App\Traits\ApiResponseTrait;
 
 class FormController extends Controller
 {
+    use ApiResponseTrait;
     //
     public function createForm(Request $request)
     {
@@ -36,7 +38,9 @@ class FormController extends Controller
             ]);
         }
 
-        return response()->json(['success' => true, 'form_id' => $form->id]);
+        $data= ['form_id' => $form->id];
+
+        return $this->successResponse($data, 'Form created successfully', 201);
     }
 
     public function submitForm(Request $request, $formId, $submitted_by)
