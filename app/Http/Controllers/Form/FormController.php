@@ -118,33 +118,74 @@ class FormController extends Controller
         }
     }
 
+
     public function getFormsByAdmin($adminId)
     {
-        $forms = Form::with('fields')->where('admin_id', $adminId)->get();
-        return response()->json(['forms' => $forms]);
+        try {
+            $forms = Form::with('fields')->where('admin_id', $adminId)->get();
+            $data = ['forms' => $forms];
+            return $this->successResponse($data, 'Forms retrieved successfully');
+        } catch (\Exception $e) {
+            // Optional: Log the exception here
+            return $this->serverErrorResponse('Failed to retrieve forms', $e->getMessage());
+        }
     }
 
     public function getFormById($formId)
     {
-        $form = Form::with('fields')->findOrFail($formId);
-        return response()->json(['form' => $form]);
+        try {
+            $form = Form::with('fields')->findOrFail($formId);
+            $data = ['form' => $form];
+            return $this->successResponse($data, 'Form retrieved successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->notFoundResponse('Form not found');
+        } catch (\Exception $e) {
+            // Optional: log error
+            return $this->serverErrorResponse('Failed to retrieve form', $e->getMessage());
+        }
     }
+
 
     public function getAllSubmissions()
     {
-        $submissions = FormSubmission::with(['form', 'data.field'])->get();
-        return response()->json(['submissions' => $submissions]);
+        try {
+            $submissions = FormSubmission::with(['form', 'data.field'])->get();
+            $data = ['submissions' => $submissions];
+            return $this->successResponse($data, 'Submissions retrieved successfully');
+        } catch (\Exception $e) {
+            // Optionally log the error here
+            return $this->serverErrorResponse('Failed to retrieve submissions', $e->getMessage());
+        }
     }
+
 
     public function getSubmissionsByUser($userId)
     {
-        $submissions = FormSubmission::with(['form', 'data.field'])->where('submitted_by', $userId)->get();
-        return response()->json(['submissions' => $submissions]);
+        try {
+            $submissions = FormSubmission::with(['form', 'data.field'])
+                ->where('submitted_by', $userId)
+                ->get();
+
+            $data = ['submissions' => $submissions];
+            return $this->successResponse($data, 'Submissions retrieved successfully');
+        } catch (\Exception $e) {
+            // Optionally log the exception
+            return $this->serverErrorResponse('Failed to retrieve submissions', $e->getMessage());
+        }
     }
+
 
     public function getSubmissionById($submissionId)
     {
-        $submission = FormSubmission::with(['form.fields', 'data.field'])->findOrFail($submissionId);
-        return response()->json(['submission' => $submission]);
+        try {
+            $submission = FormSubmission::with(['form.fields', 'data.field'])->findOrFail($submissionId);
+            $data = ['submission' => $submission];
+            return $this->successResponse($data, 'Submission retrieved successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->notFoundResponse('Submission not found');
+        } catch (\Exception $e) {
+            // Optional: log the exception here
+            return $this->serverErrorResponse('Failed to retrieve submission', $e->getMessage());
+        }
     }
 }
