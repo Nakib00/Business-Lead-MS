@@ -105,10 +105,17 @@ class FormController extends Controller
 
         return $this->successResponse(null, 'Form submitted successfully', 201);
     }
+
+
     public function getAllForms()
     {
-        $forms = Form::with('fields')->get();
-        return response()->json(['forms' => $forms]);
+        try {
+            $forms = Form::with('fields')->get();
+            $data = ['forms' => $forms];
+            return $this->successResponse($data, 'Forms retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->serverErrorResponse('Failed to retrieve forms', $e->getMessage());
+        }
     }
 
     public function getFormsByAdmin($adminId)
