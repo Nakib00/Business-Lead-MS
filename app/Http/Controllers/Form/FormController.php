@@ -39,13 +39,13 @@ class FormController extends Controller
         return response()->json(['success' => true, 'form_id' => $form->id]);
     }
 
-    public function submitForm(Request $request, $formId)
+    public function submitForm(Request $request, $formId, $submitted_by)
     {
         $form = Form::with('fields')->findOrFail($formId);
 
         $submission = FormSubmission::create([
             'form_id' => $formId,
-            'submitted_by' => auth()->id() ?? null,
+            'submitted_by' => $submitted_by,
         ]);
 
         foreach ($form->fields as $field) {
