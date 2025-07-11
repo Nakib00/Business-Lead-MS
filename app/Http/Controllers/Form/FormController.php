@@ -36,7 +36,7 @@ class FormController extends Controller
             ]);
         }
 
-        return $this->sussessresponse($form->id, "Form created successfully.");
+        return $this->sussessresponse($form->id,"Form created successfully.", 201);
     }
 
     public function submitForm(Request $request, $formId, $submitted_by)
