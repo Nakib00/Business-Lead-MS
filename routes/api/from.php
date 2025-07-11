@@ -9,3 +9,7 @@ Route::get('/forms', [FormController::class, 'getAllForms']);
 Route::get('/forms/{formId}', [FormController::class, 'getFormById']);
 Route::get('/forms/admin/{adminId}', [FormController::class, 'getFormsByAdmin']);
 Route::post('/forms/submit/{formId}/submitted/{submitted_by}', [FormController::class, 'submitForm']);
+
+Route::get('/submissions', [FormController::class, 'getAllSubmissions']);
+Route::get('/submissions/user/{userId}', [FormController::class, 'getSubmissionsByUser']);
+Route::get('/submissions/{submissionId}', [FormController::class, 'getSubmissionById']);

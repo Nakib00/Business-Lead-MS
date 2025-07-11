@@ -70,7 +70,6 @@ class FormController extends Controller
         return response()->json(['success' => true]);
     }
 
-
     public function getAllForms()
     {
         $forms = Form::with('fields')->get();
@@ -87,5 +86,23 @@ class FormController extends Controller
     {
         $form = Form::with('fields')->findOrFail($formId);
         return response()->json(['form' => $form]);
+    }
+
+    public function getAllSubmissions()
+    {
+        $submissions = FormSubmission::with(['form', 'data.field'])->get();
+        return response()->json(['submissions' => $submissions]);
+    }
+
+    public function getSubmissionsByUser($userId)
+    {
+        $submissions = FormSubmission::with(['form', 'data.field'])->where('submitted_by', $userId)->get();
+        return response()->json(['submissions' => $submissions]);
+    }
+
+    public function getSubmissionById($submissionId)
+    {
+        $submission = FormSubmission::with(['form.fields', 'data.field'])->findOrFail($submissionId);
+        return response()->json(['submission' => $submission]);
     }
 }
