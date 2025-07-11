@@ -51,8 +51,23 @@ trait ApiResponseTrait
      */
     protected function validationErrorResponse($errors)
     {
-        return $this->errorResponse('Validation error', $errors, 422);
+        // If $errors is a MessageBag (typical for validation), get all messages as a flat array
+        if (method_exists($errors, 'all')) {
+            $errors = $errors->all();
+        } elseif (is_array($errors)) {
+            // If it is an array keyed by fields, flatten it to just messages
+            $errors = collect($errors)->flatten()->all();
+        }
+
+        return response()->json([
+            'success' => false,
+            'status' => 422,
+            'message' => 'Validation error',
+            'data' => null,
+            'errors' => $errors,
+        ], 422);
     }
+
 
     /**
      * Not Found Response
