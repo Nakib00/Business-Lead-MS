@@ -36,7 +36,7 @@ class FormController extends Controller
             ]);
         }
 
-        return response()->json(['success' => true, 'form_id' => $form->id]);
+        return $this->sussessresponse($form->id, "Form created successfully.");
     }
 
     public function submitForm(Request $request, $formId, $submitted_by)
