@@ -10,6 +10,7 @@ use App\Models\FormSubmission;
 use App\Models\SubmissionData;
 use Illuminate\Support\Facades\Storage;
 use App\Traits\ApiResponseTrait;
+use Illuminate\Support\Facades\Validator;
 
 class FormController extends Controller
 {
@@ -38,25 +39,56 @@ class FormController extends Controller
             ]);
         }
 
-        $data= ['form_id' => $form->id];
+        $data = ['form_id' => $form->id];
 
         return $this->successResponse($data, 'Form created successfully', 201);
     }
 
     public function submitForm(Request $request, $formId, $submitted_by)
     {
-        $form = Form::with('fields')->findOrFail($formId);
+        // Find the form with fields or return 404
+        $form = Form::with('fields')->find($formId);
+        if (!$form) {
+            return $this->notFoundResponse('Form not found.');
+        }
 
+        // Build validation rules dynamically based on form fields
+        $rules = [];
+        foreach ($form->fields as $field) {
+            $key = 'field_' . $field->id;
+            if ($field->is_required) {
+                if (in_array($field->field_type, ['file', 'image'])) {
+                    $rules[$key] = 'required|file';  // You can refine mime types if needed
+                } else {
+                    $rules[$key] = 'required|string';
+                }
+            } else {
+                if (in_array($field->field_type, ['file', 'image'])) {
+                    $rules[$key] = 'nullable|file';
+                } else {
+                    $rules[$key] = 'nullable|string';
+                }
+            }
+        }
+
+        // Validate the request inputs based on generated rules
+        $validator = Validator::make($request->all(), $rules);
+        if ($validator->fails()) {
+            return $this->validationErrorResponse($validator->errors());
+        }
+
+        // Create the submission
         $submission = FormSubmission::create([
             'form_id' => $formId,
             'submitted_by' => $submitted_by,
         ]);
 
+        // Save the submission data
         foreach ($form->fields as $field) {
             $inputKey = 'field_' . $field->id;
 
             if (in_array($field->field_type, ['file', 'image']) && $request->hasFile($inputKey)) {
-                $path = $request->file($inputKey)->store('FromFile');
+                $path = $request->file($inputKey)->store('FormFile');
                 SubmissionData::create([
                     'submission_id' => $submission->id,
                     'field_id' => $field->id,
@@ -66,14 +98,13 @@ class FormController extends Controller
                 SubmissionData::create([
                     'submission_id' => $submission->id,
                     'field_id' => $field->id,
-                    'value' => $request->input($inputKey)
+                    'value' => $request->input($inputKey),
                 ]);
             }
         }
 
-        return response()->json(['success' => true]);
+        return $this->successResponse(null, 'Form submitted successfully', 201);
     }
-
     public function getAllForms()
     {
         $forms = Form::with('fields')->get();
