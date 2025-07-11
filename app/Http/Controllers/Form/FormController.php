@@ -52,7 +52,7 @@ class FormController extends Controller
             $inputKey = 'field_' . $field->id;
 
             if (in_array($field->field_type, ['file', 'image']) && $request->hasFile($inputKey)) {
-                $path = $request->file($inputKey)->store('uploads');
+                $path = $request->file($inputKey)->store('FromFile');
                 SubmissionData::create([
                     'submission_id' => $submission->id,
                     'field_id' => $field->id,
@@ -69,6 +69,7 @@ class FormController extends Controller
 
         return response()->json(['success' => true]);
     }
+
 
     public function getAllForms()
     {
