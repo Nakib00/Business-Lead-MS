@@ -69,4 +69,16 @@ class FormController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function getAllForms()
+    {
+        $forms = Form::with('fields')->get();
+        return response()->json(['forms' => $forms]);
+    }
+
+    public function getFormsByAdmin($adminId)
+    {
+        $forms = Form::with('fields')->where('admin_id', $adminId)->get();
+        return response()->json(['forms' => $forms]);
+    }
 }
