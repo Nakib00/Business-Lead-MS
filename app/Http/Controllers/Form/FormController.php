@@ -81,4 +81,10 @@ class FormController extends Controller
         $forms = Form::with('fields')->where('admin_id', $adminId)->get();
         return response()->json(['forms' => $forms]);
     }
+
+    public function getFormById($formId)
+    {
+        $form = Form::with('fields')->findOrFail($formId);
+        return response()->json(['form' => $form]);
+    }
 }
