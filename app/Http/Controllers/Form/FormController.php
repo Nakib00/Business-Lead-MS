@@ -1,16 +1,16 @@
 <?php
 
-namespace App\Http\Controllers\From;
+namespace App\Http\Controllers\Form;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Form;
-use App\Models\Form_fild;
-use App\Models\Form_submission;
-use App\Models\Submission_date;
+use App\Models\FormField;
+use App\Models\FormSubmission;
+use App\Models\SubmissionData;
 use Illuminate\Support\Facades\Storage;
 
-class FromController extends Controller
+class FormController extends Controller
 {
     //
     public function createForm(Request $request)
@@ -26,7 +26,7 @@ class FromController extends Controller
         $form = Form::create($request->only(['title', 'description', 'admin_id', 'created_by']));
 
         foreach ($request->fields as $index => $field) {
-            Form_fild::create([
+            FormField::create([
                 'form_id' => $form->id,
                 'field_type' => $field['type'],
                 'label' => $field['label'],
@@ -43,7 +43,7 @@ class FromController extends Controller
     {
         $form = Form::with('fields')->findOrFail($formId);
 
-        $submission = Form_submission::create([
+        $submission = FormSubmission::create([
             'form_id' => $formId,
             'submitted_by' => auth()->id() ?? null,
         ]);
@@ -53,13 +53,13 @@ class FromController extends Controller
 
             if (in_array($field->field_type, ['file', 'image']) && $request->hasFile($inputKey)) {
                 $path = $request->file($inputKey)->store('uploads');
-                Submission_date::create([
+                SubmissionData::create([
                     'submission_id' => $submission->id,
                     'field_id' => $field->id,
                     'value' => $path,
                 ]);
             } else {
-                Submission_date::create([
+                SubmissionData::create([
                     'submission_id' => $submission->id,
                     'field_id' => $field->id,
                     'value' => $request->input($inputKey)

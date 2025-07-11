@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\From\FromController;
+use App\Http\Controllers\Form\FormController;
 
 
-Route::post('/forms', [FromController::class, 'createForm']);
-Route::post('/forms/{formId}/submit', [FromController::class, 'submitForm']);
+Route::post('/forms', [FormController::class, 'createForm']);
+Route::post('/forms/{formId}/submit', [FormController::class, 'submitForm']);

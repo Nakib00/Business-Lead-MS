@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('form_filds', function (Blueprint $table) {
+        Schema::create('form_fields', function (Blueprint $table) {
             $table->id();
             $table->foreignId('form_id')->constrained()->onDelete('cascade');
             $table->string('field_type'); // input, textarea, file, image, etc
@@ -28,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('form_filds');
+        Schema::dropIfExists('form_fields');
     }
 };

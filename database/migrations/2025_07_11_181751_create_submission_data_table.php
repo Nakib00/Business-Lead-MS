@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('submission_dates', function (Blueprint $table) {
+        Schema::create('submission_data', function (Blueprint $table) {
             $table->id();
             $table->foreignId('submission_id')->constrained('form_submissions')->onDelete('cascade');
             $table->foreignId('field_id')->constrained('form_fields')->onDelete('cascade');
@@ -25,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('submission_dates');
+        Schema::dropIfExists('submission_data');
     }
 };
