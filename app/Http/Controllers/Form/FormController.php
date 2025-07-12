@@ -44,7 +44,7 @@ class FormController extends Controller
         return $this->successResponse($data, 'Form created successfully', 201);
     }
 
-    public function submitForm(Request $request, $formId, $submitted_by)
+    public function submitForm(Request $request, $formId, $submitted_by, $adminid)
     {
         // Find the form with fields or return 404
         $form = Form::with('fields')->find($formId);
@@ -81,6 +81,7 @@ class FormController extends Controller
         $submission = FormSubmission::create([
             'form_id' => $formId,
             'submitted_by' => $submitted_by,
+            'admin_id' => $adminid
         ]);
 
         // Save the submission data

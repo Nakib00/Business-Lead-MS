@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class FormSubmission extends Model
 {
     use HasFactory;
-    protected $fillable = ['form_id', 'submitted_by'];
+    protected $fillable = ['form_id', 'submitted_by','admin_id'];
     public function data()
     {
         return $this->hasMany(SubmissionData::class, 'submission_id');
