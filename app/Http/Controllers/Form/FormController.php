@@ -189,4 +189,19 @@ class FormController extends Controller
             return $this->serverErrorResponse('Failed to retrieve submission', $e->getMessage());
         }
     }
+
+    public function getSubmissionsByAdmin($adminId)
+    {
+        try {
+            $submissions = FormSubmission::with(['form', 'data.field'])
+                ->where('admin_id', $adminId)
+                ->get();
+
+            $data = ['submissions' => $submissions];
+            return $this->successResponse($data, 'Submissions retrieved successfully');
+        } catch (\Exception $e) {
+            // Optionally log the exception
+            return $this->serverErrorResponse('Failed to retrieve submissions', $e->getMessage());
+        }
+    }
 }

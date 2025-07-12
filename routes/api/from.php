@@ -13,3 +13,4 @@ Route::post('/forms/submit/{formId}/submitted/{submitted_by}/admin/{adminid}', [
 Route::get('/submissions', [FormController::class, 'getAllSubmissions']);
 Route::get('/submissions/user/{userId}', [FormController::class, 'getSubmissionsByUser']);
 Route::get('/submissions/{submissionId}', [FormController::class, 'getSubmissionById']);
+Route::get('/submissions/admin/{adminId}', [FormController::class, 'getSubmissionsByAdmin']);
