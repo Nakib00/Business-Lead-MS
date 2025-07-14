@@ -259,6 +259,105 @@ class FormController extends Controller
         }
     }
 
+    /**
+     * Update an existing form submission.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param int $submissionId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateSubmission(Request $request, $submissionId)
+    {
+        try {
+            //  Find the existing submission with its relationships
+            $submission = FormSubmission::with('form.fields', 'data')->findOrFail($submissionId);
+
+            // Build validation rules (same logic as submitting)
+            // Note: For updates, you might want 'sometimes|required' if not all fields are sent.
+            // But for a full PUT request, 'required' is appropriate.
+            $rules = [];
+            foreach ($submission->form->fields as $field) {
+                $key = 'field_' . $field->id;
+                $rule = $field->is_required ? 'required' : 'nullable';
+
+                if (in_array($field->field_type, ['file', 'image'])) {
+                    $rules[$key] = $rule . '|file';
+                } else {
+                    $rules[$key] = $rule . '|string';
+                }
+            }
+
+            // 3. Validate the request
+            $validator = Validator::make($request->all(), $rules);
+            if ($validator->fails()) {
+                return $this->validationErrorResponse($validator->errors());
+            }
+
+            //  Loop through fields and update submission data
+            foreach ($submission->form->fields as $field) {
+                $inputKey = 'field_' . $field->id;
+
+                // Find the specific piece of data to update
+                $dataToUpdate = $submission->data->firstWhere('field_id', $field->id);
+
+                // Skip if the field wasn't submitted in the request
+                if (!$request->has($inputKey) && !$request->hasFile($inputKey)) {
+                    continue;
+                }
+
+                //  Handle file updates
+                if (in_array($field->field_type, ['file', 'image']) && $request->hasFile($inputKey)) {
+                    // Best Practice: Delete the old file if it exists
+                    if ($dataToUpdate && $dataToUpdate->value) {
+                        Storage::delete($dataToUpdate->value);
+                    }
+
+                    // Store the new file and get its path
+                    $path = $request->file($inputKey)->store('FormFile');
+                    $value = $path;
+
+                    // Handle text-based input updates
+                } else {
+                    $value = $request->input($inputKey);
+                }
+
+                // Update or Create the SubmissionData record
+                if ($dataToUpdate) {
+                    $dataToUpdate->update(['value' => $value]);
+                } else {
+                    // If for some reason a record didn't exist (e.g., optional field left blank initially), create it.
+                    SubmissionData::create([
+                        'submission_id' => $submission->id,
+                        'field_id'      => $field->id,
+                        'value'         => $value,
+                    ]);
+                }
+            }
+
+            // Reload the submission with all updated data for the response
+            $updatedSubmission = FormSubmission::with(['form', 'data.field'])->findOrFail($submissionId);
+
+            $formattedData = [
+                'id' => $updatedSubmission->id,
+                'form_id' => $updatedSubmission->form_id,
+                'submitted_by' => $updatedSubmission->submitted_by,
+                'created_at' => $updatedSubmission->created_at->toIso8601String(),
+                'updated_at' => $updatedSubmission->updated_at->toIso8601String(),
+                'admin_id' => $updatedSubmission->admin_id,
+                'title' => $updatedSubmission->form->title,
+                'description' => $updatedSubmission->form->description,
+                'submissiondata' => $updatedSubmission->data,
+            ];
+
+            return $this->successResponse($formattedData, 'Submission updated successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->notFoundResponse('Submission not found');
+        } catch (\Exception $e) {
+            // Log::error($e);
+            return $this->serverErrorResponse('Failed to update submission', $e->getMessage());
+        }
+    }
+
     public function getSubmissionsByAdmin($adminId)
     {
         try {
