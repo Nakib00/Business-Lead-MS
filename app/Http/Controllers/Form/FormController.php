@@ -39,7 +39,7 @@ class FormController extends Controller
             ]);
         }
 
-        $data = ['form_id' => $form->id];
+        $data = $form->id;
 
         return $this->successResponse($data, 'Form created successfully', 201);
     }
@@ -112,7 +112,7 @@ class FormController extends Controller
     {
         try {
             $forms = Form::with('fields')->get();
-            $data = ['forms' => $forms];
+            $data = $forms;
             return $this->successResponse($data, 'Forms retrieved successfully');
         } catch (\Exception $e) {
             return $this->serverErrorResponse('Failed to retrieve forms', $e->getMessage());
@@ -124,7 +124,7 @@ class FormController extends Controller
     {
         try {
             $forms = Form::with('fields')->where('admin_id', $adminId)->get();
-            $data = ['forms' => $forms];
+            $data =  $forms;
             return $this->successResponse($data, 'Forms retrieved successfully');
         } catch (\Exception $e) {
             // Optional: Log the exception here
@@ -136,7 +136,7 @@ class FormController extends Controller
     {
         try {
             $form = Form::with('fields')->findOrFail($formId);
-            $data = ['form' => $form];
+            $data = $form;
             return $this->successResponse($data, 'Form retrieved successfully');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->notFoundResponse('Form not found');
@@ -151,7 +151,7 @@ class FormController extends Controller
     {
         try {
             $submissions = FormSubmission::with(['form', 'data.field'])->get();
-            $data = ['submissions' => $submissions];
+            $data =  $submissions;
             return $this->successResponse($data, 'Submissions retrieved successfully');
         } catch (\Exception $e) {
             // Optionally log the error here
@@ -167,7 +167,7 @@ class FormController extends Controller
                 ->where('submitted_by', $userId)
                 ->get();
 
-            $data = ['submissions' => $submissions];
+            $data =  $submissions;
             return $this->successResponse($data, 'Submissions retrieved successfully');
         } catch (\Exception $e) {
             // Optionally log the exception
@@ -180,7 +180,7 @@ class FormController extends Controller
     {
         try {
             $submission = FormSubmission::with(['form.fields', 'data.field'])->findOrFail($submissionId);
-            $data = ['submission' => $submission];
+            $data =  $submission;
             return $this->successResponse($data, 'Submission retrieved successfully');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->notFoundResponse('Submission not found');
@@ -197,7 +197,7 @@ class FormController extends Controller
                 ->where('admin_id', $adminId)
                 ->get();
 
-            $data = ['submissions' => $submissions];
+            $data =  $submissions;
             return $this->successResponse($data, 'Submissions retrieved successfully');
         } catch (\Exception $e) {
             // Optionally log the exception
