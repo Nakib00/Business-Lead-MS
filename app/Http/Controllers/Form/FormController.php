@@ -150,11 +150,40 @@ class FormController extends Controller
     public function getAllSubmissions()
     {
         try {
+            // Fetch all submissions with their relationships
             $submissions = FormSubmission::with(['form', 'data.field'])->get();
-            $data =  $submissions;
-            return $this->successResponse($data, 'Submissions retrieved successfully');
+
+            // Group the submissions by their form_id
+            $groupedSubmissions = $submissions->groupBy('form_id');
+
+            // Transform the grouped collection into the desired final format
+            $formattedData = $groupedSubmissions->map(function ($submissionsForForm, $formId) {
+
+                // Get the form details from the first submission in the group
+                $form = $submissionsForForm->first()->form;
+
+                return [
+                    'form_id' => $formId,
+                    'title' => $form->title,
+                    'description' => $form->description,
+                    // Map over the individual submissions for this form
+                    'submissions' => $submissionsForForm->map(function ($submission) {
+                        return [
+                            'id' => $submission->id,
+                            'submitted_by' => $submission->submitted_by,
+                            'created_at' => $submission->created_at->toIso8601String(),
+                            'updated_at' => $submission->updated_at->toIso8601String(),
+                            'admin_id' => $submission->admin_id,
+                            'submissiondata' => $submission->data,
+                        ];
+                    })->values() // Ensure it's a 0-indexed array
+                ];
+            })->values(); // Ensure the final collection is a 0-indexed array
+
+            return $this->successResponse($formattedData, 'Submissions retrieved successfully');
         } catch (\Exception $e) {
-            // Optionally log the error here
+            // It's a good practice to log the error for debugging purposes
+            // Log::error($e);
             return $this->serverErrorResponse('Failed to retrieve submissions', $e->getMessage());
         }
     }
