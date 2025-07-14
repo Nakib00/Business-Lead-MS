@@ -179,13 +179,28 @@ class FormController extends Controller
     public function getSubmissionById($submissionId)
     {
         try {
-            $submission = FormSubmission::with(['form.fields', 'data.field'])->findOrFail($submissionId);
-            $data =  $submission;
-            return $this->successResponse($data, 'Submission retrieved successfully');
+            // Eager load the relationships
+            $submission = FormSubmission::with(['form', 'data.field'])->findOrFail($submissionId);
+
+            // Restructure the data for the desired JSON output
+            $formattedData = [
+                'id' => $submission->id,
+                'form_id' => $submission->form_id,
+                'submitted_by' => $submission->submitted_by,
+                'created_at' => $submission->created_at->toIso8601String(),
+                'updated_at' => $submission->updated_at->toIso8601String(),
+                'admin_id' => $submission->admin_id,
+                'title' => $submission->form->title, 
+                'description' => $submission->form->description,
+                'submissiondata' => $submission->data,
+            ];
+
+            return $this->successResponse($formattedData, 'Submission retrieved successfully');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->notFoundResponse('Submission not found');
         } catch (\Exception $e) {
-            // Optional: log the exception here
+            // It's a good practice to log the error for debugging purposes
+            // Log::error($e);
             return $this->serverErrorResponse('Failed to retrieve submission', $e->getMessage());
         }
     }
