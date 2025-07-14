@@ -190,7 +190,7 @@ class FormController extends Controller
                 'created_at' => $submission->created_at->toIso8601String(),
                 'updated_at' => $submission->updated_at->toIso8601String(),
                 'admin_id' => $submission->admin_id,
-                'title' => $submission->form->title, 
+                'title' => $submission->form->title,
                 'description' => $submission->form->description,
                 'submissiondata' => $submission->data,
             ];
@@ -212,10 +212,33 @@ class FormController extends Controller
                 ->where('admin_id', $adminId)
                 ->get();
 
-            $data =  $submissions;
-            return $this->successResponse($data, 'Submissions retrieved successfully');
+            $groupedSubmissions = $submissions->groupBy('form_id');
+
+            // Transform the grouped collection into the desired format
+            $formattedData = $groupedSubmissions->map(function ($submissionsForForm, $formId) {
+
+                $form = $submissionsForForm->first()->form;
+
+                return [
+                    'form_id' => $formId,
+                    'title' => $form->title,
+                    'description' => $form->description,
+                    // Map over the submissions for this form to format them
+                    'submissions' => $submissionsForForm->map(function ($submission) {
+                        return [
+                            'id' => $submission->id,
+                            'submitted_by' => $submission->submitted_by,
+                            'created_at' => $submission->created_at->toIso8601String(),
+                            'updated_at' => $submission->updated_at->toIso8601String(),
+                            'admin_id' => $submission->admin_id,
+                            'submissiondata' => $submission->data,
+                        ];
+                    })->values()
+                ];
+            })->values();
+
+            return $this->successResponse($formattedData, 'Submissions retrieved successfully');
         } catch (\Exception $e) {
-            // Optionally log the exception
             return $this->serverErrorResponse('Failed to retrieve submissions', $e->getMessage());
         }
     }
