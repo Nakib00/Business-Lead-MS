@@ -167,10 +167,35 @@ class FormController extends Controller
                 ->where('submitted_by', $userId)
                 ->get();
 
-            $data =  $submissions;
-            return $this->successResponse($data, 'Submissions retrieved successfully');
+            // Group the submissions by their form_id
+            $groupedSubmissions = $submissions->groupBy('form_id');
+
+            // Transform the grouped collection into the desired format
+            $formattedData = $groupedSubmissions->map(function ($submissionsForForm, $formId) {
+
+                // Get the form details from the first submission in the group
+                $form = $submissionsForForm->first()->form;
+
+                return [
+                    'form_id' => $formId,
+                    'title' => $form->title,
+                    'description' => $form->description,
+                    // Map over the submissions for this form to format them
+                    'submissions' => $submissionsForForm->map(function ($submission) {
+                        return [
+                            'id' => $submission->id,
+                            'submitted_by' => $submission->submitted_by,
+                            'created_at' => $submission->created_at->toIso8601String(),
+                            'updated_at' => $submission->updated_at->toIso8601String(),
+                            'admin_id' => $submission->admin_id,
+                            'submissiondata' => $submission->data,
+                        ];
+                    })->values()
+                ];
+            })->values();
+
+            return $this->successResponse($formattedData, 'Submissions retrieved successfully');
         } catch (\Exception $e) {
-            // Optionally log the exception
             return $this->serverErrorResponse('Failed to retrieve submissions', $e->getMessage());
         }
     }
