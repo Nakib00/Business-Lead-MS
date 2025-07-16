@@ -55,7 +55,7 @@ class FormController extends Controller
         // Build validation rules dynamically based on form fields
         $rules = [];
         foreach ($form->fields as $field) {
-            $key = $field->id;
+            $key = 'field_' . $field->id;
             if ($field->is_required) {
                 if (in_array($field->field_type, ['file', 'image'])) {
                     $rules[$key] = 'required|file';  // You can refine mime types if needed
