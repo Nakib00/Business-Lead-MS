@@ -280,7 +280,22 @@ class FormController extends Controller
                 'admin_id' => $submission->admin_id,
                 'title' => $submission->form->title,
                 'description' => $submission->form->description,
-                'submissiondata' => $submission->data,
+                // Map over the submission data to flatten the field information
+                'submissiondata' => $submission->data->map(function ($data) {
+                    return [
+                        'id' => $data->id,
+                        'submission_id' => $data->submission_id,
+                        'field_id' => $data->field_id,
+                        'field_type' => $data->field->field_type,
+                        'label' => $data->field->label,
+                        'is_required' => $data->field->is_required,
+                        'options' => $data->field->options,
+                        'field_order' => $data->field->field_order,
+                        'value' => $data->value,
+                        'created_at' => $data->created_at->toIso8601String(),
+                        'updated_at' => $data->updated_at->toIso8601String(),
+                    ];
+                })
             ];
 
             return $this->successResponse($formattedData, 'Submission retrieved successfully');
