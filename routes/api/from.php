@@ -21,4 +21,5 @@ Route::prefix('submissions')->group(function () {
     Route::get('/user/{userId}', [FormSubmissionController::class, 'getSubmissionsByUser']);
     Route::get('/{submissionId}', [FormSubmissionController::class, 'getSubmissionById']);
     Route::get('/admin/{adminId}', [FormSubmissionController::class, 'getSubmissionsByAdmin']);
+    Route::get('/form/{formId}/admin/{adminId}', [FormSubmissionController::class, 'getSubmissionsByFormAndAdmin']);;
 });

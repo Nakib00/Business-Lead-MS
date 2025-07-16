@@ -30,6 +30,7 @@ class FormSubmissionController extends Controller
         }
     }
 
+
     /**
      * Retrieves all submissions for a specific user, grouped by form.
      */
@@ -85,6 +86,25 @@ class FormSubmissionController extends Controller
             return $this->serverErrorResponse('Failed to retrieve submissions', $e->getMessage());
         }
     }
+
+    /**
+     * Retrieves all submissions for a specific admin, form id.
+     */
+    public function getSubmissionsByFormAndAdmin($formId, $adminId)
+    {
+        try {
+            $submissions = FormSubmission::with(['form', 'data.field'])
+                ->where('admin_id', $adminId)
+                ->where('form_id', $formId)
+                ->get();
+
+            $formattedData = $this->formatAndGroupSubmissions($submissions);
+            return $this->successResponse($formattedData, 'Submissions retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->serverErrorResponse('Failed to retrieve submissions', $e->getMessage());
+        }
+    }
+
 
     public function submitForm(Request $request, $formId, $submitted_by, $adminid)
     {
