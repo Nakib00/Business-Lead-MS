@@ -207,7 +207,6 @@ class FormController extends Controller
     public function getSubmissionsByUser($userId)
     {
         try {
-            // Fetch all submissions for a specific user with their relationships
             $submissions = FormSubmission::with(['form', 'data.field'])
                 ->where('submitted_by', $userId)
                 ->get();
@@ -215,7 +214,7 @@ class FormController extends Controller
             // Group the submissions by their form_id
             $groupedSubmissions = $submissions->groupBy('form_id');
 
-            // Transform the grouped collection into the desired final format
+            // Transform the grouped collection into the desired format
             $formattedData = $groupedSubmissions->map(function ($submissionsForForm, $formId) {
 
                 // Get the form details from the first submission in the group
@@ -225,7 +224,7 @@ class FormController extends Controller
                     'form_id' => $formId,
                     'title' => $form->title,
                     'description' => $form->description,
-                    // Map over the individual submissions for this form
+                    // Map over the submissions for this form to format them
                     'submissions' => $submissionsForForm->map(function ($submission) {
                         return [
                             'id' => $submission->id,
@@ -235,41 +234,31 @@ class FormController extends Controller
                             'admin_id' => $submission->admin_id,
                             // Transform the submission data to flatten the field information
                             'submissiondata' => $submission->data->map(function ($data) {
-                                // Check if the related field exists to prevent errors
-                                if ($data->field) {
-                                    return [
-                                        'id' => $data->id,
-                                        'submission_id' => $data->submission_id,
-                                        'field_id' => $data->field_id,
-                                        'field_type' => $data->field->field_type,
-                                        'label' => $data->field->label,
-                                        'is_required' => $data->field->is_required,
-                                        'options' => $data->field->options,
-                                        'field_order' => $data->field->field_order,
-                                        'value' => $data->value,
-                                        'created_at' => $data->created_at->toIso8601String(),
-                                        'updated_at' => $data->updated_at->toIso8601String(),
-                                    ];
-                                }
-                                // Return a basic structure if field is missing, though this case is unlikely with proper data integrity
                                 return [
                                     'id' => $data->id,
                                     'submission_id' => $data->submission_id,
                                     'field_id' => $data->field_id,
+                                    'field_type' => $data->field->field_type,
+                                    'label' => $data->field->label,
+                                    'is_required' => $data->field->is_required,
+                                    'options' => $data->field->options,
+                                    'field_order' => $data->field->field_order,
                                     'value' => $data->value,
                                     'created_at' => $data->created_at->toIso8601String(),
                                     'updated_at' => $data->updated_at->toIso8601String(),
                                 ];
-                            })->values(), // Ensure it's a 0-indexed array
+                            })->values() // Ensure it's a 0-indexed array
                         ];
-                    })->values() // Ensure it's a 0-indexed array
+                    })->values()
                 ];
-            })->values(); // Ensure the final collection is a 0-indexed array
+            })->values();
 
-            return $this->successResponse($formattedData, 'Submissions retrieved successfully');
+            // Since the initial response shows a single object instead of an array,
+            // we'll check if there's any data and return the first element.
+            $response = count($formattedData) > 0 ? $formattedData[0] : null;
+
+            return $this->successResponse($response, 'Submissions retrieved successfully');
         } catch (\Exception $e) {
-            // Log the error for debugging purposes
-            // Log::error("Error in getSubmissionsByUser for user {$userId}: " . $e->getMessage());
             return $this->serverErrorResponse('Failed to retrieve submissions', $e->getMessage());
         }
     }
