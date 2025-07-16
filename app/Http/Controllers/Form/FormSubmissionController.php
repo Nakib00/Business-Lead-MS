@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Validator;
 
 class FormSubmissionController extends Controller
 {
+    use ApiResponseTrait;
+
     /**
      * Retrieves all form submissions, grouped by form.
      */
@@ -225,17 +227,8 @@ class FormSubmissionController extends Controller
             // Reload the submission with all updated data for the response
             $updatedSubmission = FormSubmission::with(['form', 'data.field'])->findOrFail($submissionId);
 
-            $formattedData = [
-                'id' => $updatedSubmission->id,
-                'form_id' => $updatedSubmission->form_id,
-                'submitted_by' => $updatedSubmission->submitted_by,
-                'created_at' => $updatedSubmission->created_at->toIso8601String(),
-                'updated_at' => $updatedSubmission->updated_at->toIso8601String(),
-                'admin_id' => $updatedSubmission->admin_id,
-                'title' => $updatedSubmission->form->title,
-                'description' => $updatedSubmission->form->description,
-                'submissiondata' => $updatedSubmission->data,
-            ];
+            // Use the formatter to ensure a consistent response
+            $formattedData = $this->formatSubmission($updatedSubmission);
 
             return $this->successResponse($formattedData, 'Submission updated successfully');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
