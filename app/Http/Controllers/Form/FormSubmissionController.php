@@ -259,6 +259,24 @@ class FormSubmissionController extends Controller
         }
     }
 
+    // updateStatus method to update the status of a submission
+    public function updateStatus(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'status' => 'required|string',
+            ]);
+
+            $submission = FormSubmission::findOrFail($id);
+            $submission->status = $request->status;
+            $submission->save();
+
+            return $this->successResponse($submission, 'Submission status updated successfully');
+        } catch (\Exception $e) {
+            return $this->serverErrorResponse('Failed to update status', $e->getMessage());
+        }
+    }
+
 
     // --------------------------------------------------------------------
     // PRIVATE HELPER METHODS FOR CODE OPTIMIZATION
