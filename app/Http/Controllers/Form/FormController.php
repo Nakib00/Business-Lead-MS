@@ -174,7 +174,22 @@ class FormController extends Controller
                             'created_at' => $submission->created_at->toIso8601String(),
                             'updated_at' => $submission->updated_at->toIso8601String(),
                             'admin_id' => $submission->admin_id,
-                            'submissiondata' => $submission->data,
+                            // Transform the submission data to flatten the field information
+                            'submissiondata' => $submission->data->map(function ($data) {
+                                return [
+                                    'id' => $data->id,
+                                    'submission_id' => $data->submission_id,
+                                    'field_id' => $data->field_id,
+                                    'field_type' => $data->field->field_type,
+                                    'label' => $data->field->label,
+                                    'is_required' => $data->field->is_required,
+                                    'options' => $data->field->options,
+                                    'field_order' => $data->field->field_order,
+                                    'value' => $data->value,
+                                    'created_at' => $data->created_at->toIso8601String(),
+                                    'updated_at' => $data->updated_at->toIso8601String(),
+                                ];
+                            })->values(), // Ensure it's a 0-indexed array
                         ];
                     })->values() // Ensure it's a 0-indexed array
                 ];
