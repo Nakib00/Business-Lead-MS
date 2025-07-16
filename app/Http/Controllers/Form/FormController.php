@@ -410,22 +410,25 @@ class FormController extends Controller
     public function getSubmissionsByAdmin($adminId)
     {
         try {
+            // Fetch all submissions for the admin with their relationships
             $submissions = FormSubmission::with(['form', 'data.field'])
                 ->where('admin_id', $adminId)
                 ->get();
 
+            // Group the submissions by their form_id
             $groupedSubmissions = $submissions->groupBy('form_id');
 
-            // Transform the grouped collection into the desired format
+            // Transform the grouped collection into the desired final format
             $formattedData = $groupedSubmissions->map(function ($submissionsForForm, $formId) {
 
+                // Get the form details from the first submission in the group
                 $form = $submissionsForForm->first()->form;
 
                 return [
                     'form_id' => $formId,
                     'title' => $form->title,
                     'description' => $form->description,
-                    // Map over the submissions for this form to format them
+                    // Map over the individual submissions for this form
                     'submissions' => $submissionsForForm->map(function ($submission) {
                         return [
                             'id' => $submission->id,
@@ -433,14 +436,31 @@ class FormController extends Controller
                             'created_at' => $submission->created_at->toIso8601String(),
                             'updated_at' => $submission->updated_at->toIso8601String(),
                             'admin_id' => $submission->admin_id,
-                            'submissiondata' => $submission->data,
+                            // Transform the submission data to flatten the field information
+                            'submissiondata' => $submission->data->map(function ($data) {
+                                return [
+                                    'id' => $data->id,
+                                    'submission_id' => $data->submission_id,
+                                    'field_id' => $data->field_id,
+                                    'field_type' => $data->field->field_type,
+                                    'label' => $data->field->label,
+                                    'is_required' => $data->field->is_required,
+                                    'options' => $data->field->options,
+                                    'field_order' => $data->field->field_order,
+                                    'value' => $data->value,
+                                    'created_at' => $data->created_at->toIso8601String(),
+                                    'updated_at' => $data->updated_at->toIso8601String(),
+                                ];
+                            })->values(), // Ensure it's a 0-indexed array
                         ];
-                    })->values()
+                    })->values() // Ensure it's a 0-indexed array
                 ];
-            })->values();
+            })->values(); // Ensure the final collection is a 0-indexed array
 
             return $this->successResponse($formattedData, 'Submissions retrieved successfully');
         } catch (\Exception $e) {
+            // Log the error for debugging
+            // Log::error($e);
             return $this->serverErrorResponse('Failed to retrieve submissions', $e->getMessage());
         }
     }
