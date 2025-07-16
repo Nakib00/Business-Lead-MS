@@ -264,7 +264,7 @@ class FormSubmissionController extends Controller
     {
         try {
             $request->validate([
-                'status' => 'required|string',
+                'status' => 'required|integer',
             ]);
 
             $submission = FormSubmission::findOrFail($id);

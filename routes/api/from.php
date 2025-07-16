@@ -16,7 +16,7 @@ Route::prefix('forms')->group(function () {
 Route::prefix('submissions')->group(function () {
     Route::post('/forms/submit/{formId}/submitted/{submitted_by}/admin/{adminid}', [FormSubmissionController::class, 'submitForm']);
     Route::put('/{submissionId}', [FormSubmissionController::class, 'updateSubmission']);
-    Route::put('/status/{id}', [FormSubmissionController::class, 'updateStatus']);
+    Route::put('/status/{submissionId}', [FormSubmissionController::class, 'updateStatus']);
 
     Route::get('/', [FormSubmissionController::class, 'getAllSubmissions']);
     Route::get('/user/{userId}', [FormSubmissionController::class, 'getSubmissionsByUser']);
