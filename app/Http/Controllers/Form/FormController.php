@@ -174,6 +174,7 @@ class FormController extends Controller
                             'created_at' => $submission->created_at->toIso8601String(),
                             'updated_at' => $submission->updated_at->toIso8601String(),
                             'admin_id' => $submission->admin_id,
+                            'status' => $submission->status,
                             // Transform the submission data to flatten the field information
                             'submissiondata' => $submission->data->map(function ($data) {
                                 return [
@@ -232,6 +233,7 @@ class FormController extends Controller
                             'created_at' => $submission->created_at->toIso8601String(),
                             'updated_at' => $submission->updated_at->toIso8601String(),
                             'admin_id' => $submission->admin_id,
+                            'status' => $submission->status,
                             // Transform the submission data to flatten the field information
                             'submissiondata' => $submission->data->map(function ($data) {
                                 return [
@@ -280,6 +282,7 @@ class FormController extends Controller
                 'admin_id' => $submission->admin_id,
                 'title' => $submission->form->title,
                 'description' => $submission->form->description,
+                'status' => $submission->status,
                 // Map over the submission data to flatten the field information
                 'submissiondata' => $submission->data->map(function ($data) {
                     return [
@@ -436,6 +439,7 @@ class FormController extends Controller
                             'created_at' => $submission->created_at->toIso8601String(),
                             'updated_at' => $submission->updated_at->toIso8601String(),
                             'admin_id' => $submission->admin_id,
+                            'status' => $submission->status,
                             // Transform the submission data to flatten the field information
                             'submissiondata' => $submission->data->map(function ($data) {
                                 return [
