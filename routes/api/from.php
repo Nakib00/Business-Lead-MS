@@ -8,7 +8,7 @@ Route::prefix('forms')->group(function () {
     Route::post('/', [FormController::class, 'createForm']);
     Route::get('/', [FormController::class, 'getAllForms']);
     Route::get('/{formId}', [FormController::class, 'getFormById']);
-    Route::get('/{adminId}', [FormController::class, 'getFormsByAdmin']);
+    Route::get('/admin/{adminId}', [FormController::class, 'getFormsByAdmin']);
 });
 
 
