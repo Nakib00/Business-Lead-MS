@@ -109,4 +109,35 @@ class FormController extends Controller
             return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
         }
     }
+
+    // add new fild in the from
+    public function addField(Request $request, $formId)
+    {
+        $request->validate([
+            'field_type' => 'required|string|max:50',
+            'label' => 'required|string|max:255',
+            'is_required' => 'boolean',
+            'options' => 'nullable|array',
+            'field_order' => 'nullable|integer',
+        ]);
+
+        try {
+            $form = Form::findOrFail($formId);
+
+            $field = FormField::create([
+                'form_id' => $form->id,
+                'field_type' => $request->field_type,
+                'label' => $request->label,
+                'is_required' => $request->is_required ?? false,
+                'options' => $request->options ? json_encode($request->options) : null,
+                'field_order' => $request->field_order ?? $form->fields()->count(),
+            ]);
+
+            return $this->successResponse($field, 'Field added successfully', 201);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Form not found', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
+        }
+    }
 }
