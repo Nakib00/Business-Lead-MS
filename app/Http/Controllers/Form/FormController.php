@@ -78,4 +78,19 @@ class FormController extends Controller
             return $this->serverErrorResponse('Failed to retrieve form', $e->getMessage());
         }
     }
+
+    // from delete 
+    public function destroy($id)
+    {
+        try {
+            $form = Form::findOrFail($id);
+            $form->delete();
+
+            return $this->successResponse('Form and all related data deleted successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Form not found', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
+        }
+    }
 }
