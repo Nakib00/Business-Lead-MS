@@ -10,6 +10,7 @@ Route::prefix('forms')->group(function () {
     Route::get('/{formId}', [FormController::class, 'getFormById']);
     Route::get('/admin/{adminId}', [FormController::class, 'getFormsByAdmin']);
     Route::delete('/{fromid}',[FormController::class, 'destroy']);
+    Route::delete('/{fromID}/fields/{fieldID}', [FormController::class, 'destroyField']);
 });
 
 

@@ -93,4 +93,20 @@ class FormController extends Controller
             return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
         }
     }
+
+    // From fild delete also delete the submission data
+    public function destroyField($formId, $fieldId)
+    {
+        try {
+            $field = FormField::where('form_id', $formId)->where('id', $fieldId)->firstOrFail();
+
+            $field->delete();
+
+            return $this->successResponse('Field and related submission data deleted successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Field not found in this form', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
+        }
+    }
 }
