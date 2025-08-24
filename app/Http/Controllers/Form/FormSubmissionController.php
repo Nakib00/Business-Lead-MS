@@ -290,7 +290,7 @@ class FormSubmissionController extends Controller
         return $groupedSubmissions->map(function ($submissionsForForm, $formId) {
             $form = $submissionsForForm->first()->form;
 
-            // Extract field columns from first submission
+            // Extract unique field columns
             $fromColumns = $submissionsForForm->first()->data->map(function ($data) {
                 return [
                     'field_id'   => $data->field_id,
@@ -299,8 +299,8 @@ class FormSubmissionController extends Controller
                 ];
             })->values();
 
-            // Flatten all submission data
-            $allSubmissionData = $submissionsForForm->flatMap(function ($submission) {
+            // Grouped submission data
+            $submissionData = $submissionsForForm->map(function ($submission) {
                 $dataItems = $submission->data->map(function ($data) {
                     return [
                         'id'    => $data->id,
@@ -308,17 +308,17 @@ class FormSubmissionController extends Controller
                     ];
                 });
 
-                // Add submission meta as last object
-                $meta = [
+                // Append meta info at the end
+                $dataItems->push([
                     'submissionid' => $submission->id,
                     'submitted_by' => $submission->submitted_by,
                     'created_at'   => $submission->created_at->toIso8601String(),
                     'updated_at'   => $submission->updated_at->toIso8601String(),
                     'admin_id'     => $submission->admin_id,
                     'status'       => $submission->status,
-                ];
+                ]);
 
-                return $dataItems->push($meta);
+                return $dataItems;
             })->values();
 
             return [
@@ -326,9 +326,9 @@ class FormSubmissionController extends Controller
                 'title'         => $form->title,
                 'description'   => $form->description,
                 'from_columns'  => $fromColumns,
-                'submissiondata' => $allSubmissionData
+                'submissiondata' => $submissionData
             ];
-        })->values()->first(); // since you only want one object, not an array
+        })->values()->first();
     }
 
 
