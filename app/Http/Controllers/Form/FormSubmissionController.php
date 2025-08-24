@@ -277,12 +277,6 @@ class FormSubmissionController extends Controller
         }
     }
 
-
-    // --------------------------------------------------------------------
-    // PRIVATE HELPER METHODS FOR CODE OPTIMIZATION
-    // --------------------------------------------------------------------
-
-
     /**
      * Helper method to format a collection of submissions by grouping them by form.
      *
@@ -296,22 +290,47 @@ class FormSubmissionController extends Controller
         return $groupedSubmissions->map(function ($submissionsForForm, $formId) {
             $form = $submissionsForForm->first()->form;
 
+            // Extract field columns from first submission
+            $fromColumns = $submissionsForForm->first()->data->map(function ($data) {
+                return [
+                    'field_id'   => $data->field_id,
+                    'field_type' => $data->field->field_type,
+                    'label'      => $data->field->label,
+                ];
+            })->values();
+
+            // Flatten all submission data
+            $allSubmissionData = $submissionsForForm->flatMap(function ($submission) {
+                $dataItems = $submission->data->map(function ($data) {
+                    return [
+                        'id'    => $data->id,
+                        'value' => $data->value,
+                    ];
+                });
+
+                // Add submission meta as last object
+                $meta = [
+                    'submissionid' => $submission->id,
+                    'submitted_by' => $submission->submitted_by,
+                    'created_at'   => $submission->created_at->toIso8601String(),
+                    'updated_at'   => $submission->updated_at->toIso8601String(),
+                    'admin_id'     => $submission->admin_id,
+                    'status'       => $submission->status,
+                ];
+
+                return $dataItems->push($meta);
+            })->values();
+
             return [
-                'form_id' => $formId,
-                'title' => $form->title,
-                'description' => $form->description,
-                'submissions' => $submissionsForForm->map(function ($submission) {
-                    // Reuse the single submission formatter, but only get the submission-specific parts
-                    $formatted = $this->formatSubmission($submission);
-                    // We can unset form details if we only want submission details inside the array
-                    unset($formatted['title']);
-                    unset($formatted['description']);
-                    unset($formatted['form_id']);
-                    return $formatted;
-                })->values()
+                'form_id'       => $formId,
+                'title'         => $form->title,
+                'description'   => $form->description,
+                'from_columns'  => $fromColumns,
+                'submissiondata' => $allSubmissionData
             ];
-        })->values();
+        })->values()->first(); // since you only want one object, not an array
     }
+
 
     /**
      * Helper method to format a single FormSubmission object into the desired array structure.
