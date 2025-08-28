@@ -8,7 +8,7 @@ return [
     'allowed_origins' => [
         'https://hub.desklago.com',
         'http://localhost:3000',
-        'http://localhost:5173/'
+        'http://localhost:5173'
     ],
 
     'allowed_headers' => ['*'],
