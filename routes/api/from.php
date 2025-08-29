@@ -7,6 +7,7 @@ use App\Http\Controllers\Form\{FormController, FormSubmissionController};
 Route::prefix('forms')->group(function () {
     Route::post('/', [FormController::class, 'createForm']);
     Route::get('/', [FormController::class, 'getAllForms']);
+    Route::put('/', [FormController::class, 'updateForm']);
     Route::get('/{formId}', [FormController::class, 'getFormById']);
     Route::get('/admin/{adminId}', [FormController::class, 'getFormsByAdmin']);
     Route::post('/fields/{formid}', [FormController::class, 'addField']);

@@ -140,4 +140,61 @@ class FormController extends Controller
             return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
         }
     }
+
+
+    // update form details
+    public function updateForm(Request $request, $formId)
+    {
+        $request->validate([
+            'fields' => 'required|array',
+        ]);
+
+        try {
+            $form = Form::findOrFail($formId);
+
+            // Get current fields in DB
+            $existingFields = $form->fields()->get()->keyBy('id');
+
+            // Keep track of IDs that should remain
+            $keepIds = [];
+
+            foreach ($request->fields as $index => $fieldData) {
+                // If ID looks like a string (frontend-generated), create new field
+                if (!is_numeric($fieldData['id'])) {
+                    $newField = FormField::create([
+                        'form_id'     => $form->id,
+                        'field_type'  => $fieldData['type'],
+                        'label'       => $fieldData['label'],
+                        'is_required' => $fieldData['required'] ?? false,
+                        'options'     => isset($fieldData['options']) ? json_encode($fieldData['options']) : null,
+                        'field_order' => $fieldData['field_order'] ?? $index,
+                    ]);
+                    $keepIds[] = $newField->id;
+                } else {
+                    // Update existing field
+                    $field = $existingFields[$fieldData['id']] ?? null;
+
+                    if ($field) {
+                        $field->update([
+                            'field_type'  => $fieldData['type'],
+                            'label'       => $fieldData['label'],
+                            'is_required' => $fieldData['required'] ?? false,
+                            'options'     => isset($fieldData['options']) ? json_encode($fieldData['options']) : null,
+                            'field_order' => $fieldData['field_order'] ?? $index,
+                        ]);
+                        $keepIds[] = $field->id;
+                    }
+                }
+            }
+
+            // Delete fields not in request anymore
+            $form->fields()->whereNotIn('id', $keepIds)->delete();
+
+            return $this->successResponse($form->load('fields'), 'Form updated successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Form not found', 404);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
+        }
+    }
 }
