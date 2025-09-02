@@ -98,6 +98,10 @@ class FormSubmissionController extends Controller
                 ->where('form_id', $formId)
                 ->get();
 
+            if ($submissions->isEmpty()) {
+                return $this->successResponse([], 'No submissions found for this form and admin');
+            }
+
             $formattedData = $this->formatAndGroupSubmissions($submissions);
             return $this->successResponse($formattedData, 'Submissions retrieved successfully');
         } catch (\Exception $e) {
