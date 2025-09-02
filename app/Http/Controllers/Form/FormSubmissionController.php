@@ -289,50 +289,46 @@ class FormSubmissionController extends Controller
      */
     private function formatAndGroupSubmissions($submissions)
     {
-        $groupedSubmissions = $submissions->groupBy('form_id');
+        $form = $submissions->first()->form;
 
-        return $groupedSubmissions->map(function ($submissionsForForm, $formId) {
-            $form = $submissionsForForm->first()->form;
-
-            // Extract unique field columns
-            $fromColumns = $submissionsForForm->first()->data->map(function ($data) {
-                return [
-                    'field_id'   => $data->field_id,
-                    'field_type' => $data->field->field_type,
-                    'label'      => $data->field->label,
-                ];
-            })->values();
-
-            // Grouped submission data
-            $submissionData = $submissionsForForm->map(function ($submission) {
-                $dataItems = $submission->data->map(function ($data) {
-                    return [
-                        'id'    => $data->id,
-                        'value' => $data->value,
-                    ];
-                });
-
-                // Append meta info at the end
-                $dataItems->push([
-                    'submissionid' => $submission->id,
-                    'submitted_by' => $submission->submitted_by,
-                    'created_at'   => $submission->created_at->toIso8601String(),
-                    'updated_at'   => $submission->updated_at->toIso8601String(),
-                    'admin_id'     => $submission->admin_id,
-                    'status'       => $submission->status,
-                ]);
-
-                return $dataItems;
-            })->values();
-
+        // Extract unique field columns
+        $formColumns = $form->fields->map(function ($field) {
             return [
-                'form_id'       => $formId,
-                'title'         => $form->title,
-                'description'   => $form->description,
-                'from_columns'  => $fromColumns,
-                'submissiondata' => $submissionData
+                'field_id'   => $field->id,
+                'field_type' => $field->field_type,
+                'label'      => $field->label,
             ];
-        })->values()->first();
+        })->values();
+
+        // Submission data
+        $submissionData = $submissions->map(function ($submission) {
+            $dataItems = $submission->data->map(function ($data) {
+                return [
+                    'field_id' => $data->field_id,
+                    'value'    => $data->value,
+                ];
+            });
+
+            // Append meta info at the end
+            $dataItems->push([
+                'submissionid' => $submission->id,
+                'submitted_by' => $submission->submitted_by,
+                'created_at'   => $submission->created_at->toIso8601String(),
+                'updated_at'   => $submission->updated_at->toIso8601String(),
+                'admin_id'     => $submission->admin_id,
+                'status'       => $submission->status,
+            ]);
+
+            return $dataItems;
+        })->values();
+
+        return [
+            'form_id'        => $form->id,
+            'title'          => $form->title,
+            'description'    => $form->description,
+            'form_columns'   => $formColumns,
+            'submissiondata' => $submissionData,
+        ];
     }
 
 
