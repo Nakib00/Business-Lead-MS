@@ -49,8 +49,8 @@ class ProjectController extends Controller
                 $thumbnailUrlForDB = null;
 
                 if ($request->hasFile('project_thumbnail')) {
-                    $storedPath = $request->file('project_thumbnail')->store('projects/thumbnails', 'public');
-                    $thumbnailUrlForDB = env('APP_URL') . '/storage/app/public/' . $storedPath;
+                    $imagePath = $request->file('project_thumbnail')->store('projectThumbnails', 'public');
+                    $thumbnailUrlForDB = env('APP_URL') . '/storage/app/public/' . $imagePath;
                 }
 
                 // Base payload
