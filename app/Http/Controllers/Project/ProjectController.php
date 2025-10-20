@@ -175,4 +175,70 @@ class ProjectController extends Controller
             return $this->serverErrorResponse('Failed to update progress', $e->getMessage());
         }
     }
+
+    public function updateDetails(Request $request, Project $project)
+    {
+        try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            // Validate inputs (all optional; use sometimes so only present fields are validated)
+            $validated = $request->validate([
+                'project_name'        => ['sometimes', 'required', 'string', 'max:255'],
+                'client_name'         => ['sometimes', 'required', 'string', 'max:255'],
+                'project_description' => ['sometimes', 'nullable', 'string'],
+                'category'            => ['sometimes', 'nullable', 'string', 'max:255'], // CSV "web,crm"
+                'due_date'            => ['sometimes', 'nullable', 'date'],
+                'project_thumbnail'   => ['sometimes', 'nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            ]);
+
+            // Prepare update payload from validated inputs
+            $updates = [];
+            foreach (['project_name', 'client_name', 'project_description', 'category', 'due_date'] as $field) {
+                if (array_key_exists($field, $validated)) {
+                    $updates[$field] = $validated[$field];
+                }
+            }
+
+            // If a file is uploaded, store it and (optionally) remove old one
+            if ($request->hasFile('project_thumbnail')) {
+                $file = $request->file('project_thumbnail');
+
+                $dir  = 'projects/thumbnails';
+                $name = sprintf(
+                    'PRJ_%d_%s.%s',
+                    $project->id,
+                    now()->format('Ymd_His'),
+                    $file->getClientOriginalExtension()
+                );
+
+                $newPath = $file->storeAs($dir, $name, 'public');
+
+                // delete old file if exists
+                if ($project->project_thumbnail && Storage::disk('public')->exists($project->project_thumbnail)) {
+                    Storage::disk('public')->delete($project->project_thumbnail);
+                }
+
+                $updates['project_thumbnail'] = $newPath;
+            }
+
+            // Nothing to update?
+            if (empty($updates)) {
+                return $this->successResponse($project->fresh(), 'No changes');
+            }
+
+            $project->update($updates);
+
+            // Attach a convenient URL in the response
+            $project = $project->fresh();
+            $project->append('project_thumbnail_url');
+
+            return $this->successResponse($project, 'Project updated');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to update project', $e->getMessage());
+        }
+    }
 }
