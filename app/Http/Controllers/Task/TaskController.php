@@ -327,4 +327,116 @@ class TaskController extends Controller
             return $this->serverErrorResponse('Failed to fetch task', $e->getMessage());
         }
     }
+
+    /**
+     * PATCH /tasks/{task}/status
+     * Body: { "status": 0|1|2|3 }  // 0=pending,1=in_progress,2=done,3=blocked
+     */
+    public function updateStatus(Request $request, Task $task)
+    {
+        try {
+            if (!$request->user()) return $this->unauthorizedResponse('Login required');
+
+            $data = $request->validate([
+                'status' => ['required', 'integer', 'between:0,3'],
+            ]);
+
+            $task->update(['status' => (int) $data['status']]);
+
+            return $this->successResponse($task->fresh(), 'Task status updated');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to update task status', $e->getMessage());
+        }
+    }
+
+    /**
+     * PATCH /tasks/{task}/priority
+     * Body: { "priority": "low"|"medium"|"high" }
+     */
+    public function updatePriority(Request $request, Task $task)
+    {
+        try {
+            if (!$request->user()) return $this->unauthorizedResponse('Login required');
+
+            $data = $request->validate([
+                'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
+            ]);
+
+            $task->update(['priority' => $data['priority']]);
+
+            return $this->successResponse($task->fresh(), 'Task priority updated');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to update task priority', $e->getMessage());
+        }
+    }
+
+    /**
+     * PATCH /tasks/{task}/category
+     * Body: { "category": "a,b,c" } OR { "category": ["a","b","c"] }
+     */
+    public function updateCategory(Request $request, Task $task)
+    {
+        try {
+            if (!$request->user()) return $this->unauthorizedResponse('Login required');
+
+            $data = $request->validate([
+                'category' => ['nullable'], // accept string or array; normalize below
+            ]);
+
+            $category = null;
+            if ($request->has('category')) {
+                $cat = $request->input('category');
+                if (is_array($cat)) {
+                    $cat = implode(',', array_map(fn($v) => trim((string)$v), $cat));
+                } else {
+                    $cat = collect(explode(',', (string)$cat))
+                        ->map(fn($v) => trim($v))
+                        ->filter()
+                        ->implode(',');
+                }
+                $category = $cat ?: null;
+            }
+
+            $task->update(['category' => $category]);
+
+            return $this->successResponse($task->fresh(), 'Task category updated');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to update task category', $e->getMessage());
+        }
+    }
+
+    /**
+     * PATCH /tasks/{task}
+     * Body: any of { "task_name", "description", "due_date" }
+     */
+    public function updateDetails(Request $request, Task $task)
+    {
+        try {
+            if (!$request->user()) return $this->unauthorizedResponse('Login required');
+
+            $validated = $request->validate([
+                'task_name'   => ['sometimes', 'required', 'string', 'max:255'],
+                'description' => ['sometimes', 'nullable', 'string'],
+                'due_date'    => ['sometimes', 'nullable', 'date'],
+            ]);
+
+            if (empty($validated)) {
+                return $this->successResponse($task->fresh(), 'No changes');
+            }
+
+            $task->update($validated);
+
+            return $this->successResponse($task->fresh(), 'Task updated');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to update task', $e->getMessage());
+        }
+    }
 }
