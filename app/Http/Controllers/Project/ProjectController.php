@@ -203,31 +203,10 @@ class ProjectController extends Controller
 
             // Handle thumbnail like your example (move() + relative path)
             if ($request->hasFile('project_thumbnail')) {
-                $image     = $request->file('project_thumbnail');
-                // unique-ish filename: time + random + original name (optional sanitize)
-                $imageName = time() . '_' . \Illuminate\Support\Str::random(6) . '_' . $image->getClientOriginalName();
-
-                // destination: public/projects/thumbnails
-                $destPath  = public_path('projects/thumbnails');
-
-                // ensure directory exists
-                if (!File::exists($destPath)) {
-                    File::makeDirectory($destPath, 0755, true);
-                }
-
-                // delete old file if we stored a relative path earlier
-                if (!empty($project->project_thumbnail)) {
-                    $oldAbs = public_path($project->project_thumbnail);
-                    if (File::exists($oldAbs)) {
-                        File::delete($oldAbs);
-                    }
-                }
-
-                // move uploaded file
-                $image->move($destPath, $imageName);
-
-                // save RELATIVE path in DB
-                $updates['project_thumbnail'] = 'projects/thumbnails/' . $imageName;
+                $image = $request->file('project_thumbnail');
+                $imageName = time() . '_' . $image->getClientOriginalName();
+                $image->move(public_path('projectThumbnails'), $imageName);
+                $validated['project_thumbnai'] = 'projectThumbnails/' . $imageName;
             }
 
             if (empty($updates)) {
