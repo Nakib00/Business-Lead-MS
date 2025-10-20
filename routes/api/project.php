@@ -11,5 +11,8 @@ Route::middleware('auth:api')->group(function () {
         Route::patch('/priority/{project}', [ProjectController::class, 'updatePriority']);
         Route::patch('/status/{project}',   [ProjectController::class, 'updateStatus']);
         Route::patch('/progress/{project}', [ProjectController::class, 'updateProgress']);
+
+        Route::post('/users/{project}',        [ProjectController::class, 'assignUsers']);
+        Route::delete('/users/{project}/{user}', [ProjectController::class, 'removeUser']);
     });
 });

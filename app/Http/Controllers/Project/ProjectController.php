@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
+use App\Models\User;
 
 class ProjectController extends Controller
 {
@@ -239,6 +240,76 @@ class ProjectController extends Controller
             return $this->validationErrorResponse($e->validator->errors());
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to update project', $e->getMessage());
+        }
+    }
+
+    public function assignUsers(Request $request, Project $project)
+    {
+        try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            // Normalize payload
+            $payload = $request->all();
+            $mode = $payload['mode'] ?? 'attach';
+
+            // Accept either user_id or user_ids[]
+            $ids = [];
+            if (isset($payload['user_ids'])) {
+                $ids = is_array($payload['user_ids']) ? $payload['user_ids'] : [$payload['user_ids']];
+            } elseif (isset($payload['user_id'])) {
+                $ids = [$payload['user_id']];
+            }
+
+            // Validate
+            $validated = $request->validate([
+                'mode'       => ['nullable', Rule::in(['attach', 'sync'])],
+                'user_id'    => ['nullable', 'integer', 'exists:users,id'],
+                'user_ids'   => ['nullable', 'array', 'min:1'],
+                'user_ids.*' => ['integer', 'exists:users,id'],
+            ]);
+
+            // No users provided?
+            if (empty($ids)) {
+                return $this->validationErrorResponse(['At least one user_id is required.']);
+            }
+
+            // Dedup & cast to int
+            $ids = array_values(array_unique(array_map('intval', $ids)));
+
+            if ($mode === 'sync') {
+                $project->users()->sync($ids);
+            } else {
+                $project->users()->syncWithoutDetaching($ids);
+            }
+
+            $project = $project->fresh('users');
+
+            return $this->successResponse($project, 'Users assigned to project');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to assign users', $e->getMessage());
+        }
+    }
+
+    /**
+     * DELETE /projects/{project}/users/{user}
+     * Detach a single user from the project
+     */
+    public function removeUser(Request $request, Project $project, User $user)
+    {
+        try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            $project->users()->detach($user->id);
+
+            return $this->successResponse($project->fresh('users'), 'User removed from project');
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to remove user', $e->getMessage());
         }
     }
 }
