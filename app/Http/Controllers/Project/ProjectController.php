@@ -420,49 +420,17 @@ class ProjectController extends Controller
             $paginator = $query->paginate($limit, ['*'], 'page', $page);
 
             $data = $paginator->getCollection()->map(function (Project $project) {
-                // --- Project thumbnail URL (from storage/app/public/projectThumbnails) ---
-                $thumbUrl = null;
-                if (!empty($project->project_thumbnail)) {
-                    if (Str::startsWith($project->project_thumbnail, ['http://', 'https://'])) {
-                        // already absolute
-                        $thumbUrl = $project->project_thumbnail;
-                    } else {
-                        // accept either "projectThumbnails/filename.jpg" OR just "filename.jpg"
-                        $relative = Str::startsWith($project->project_thumbnail, ['projectThumbnails/'])
-                            ? $project->project_thumbnail
-                            : 'projectThumbnails/' . ltrim($project->project_thumbnail, '/');
-
-                        // public disk URL -> /storage/projectThumbnails/filename.jpg
-                        $thumbUrl = Storage::disk('public')->url($relative);
-
-                        // SAFEGUARD: if misconfigured and returns /storage/app/public/..., normalize it
-                        $thumbUrl = str_replace('/storage/app/public/', '/storage/', $thumbUrl);
-                    }
-                }
-
-                // --- Assigned users' profile images ---
-                $assignedUserImages = $project->users->map(function ($u) {
-                    if (!$u->profile_image) return null;
-
-                    // Generate via Storage::url() for relative paths; keep full URLs as-is
-                    $url = Str::startsWith($u->profile_image, ['http://', 'https://'])
-                        ? $u->profile_image
-                        : Storage::url($u->profile_image);
-
-                    // SAFEGUARD: normalize if needed
-                    return str_replace('/storage/app/public/', '/storage/', $url);
-                })->filter()->values()->all();
 
                 return [
                     'id'                  => $project->id,
-                    'project_thumbnail'   => $thumbUrl,
+                    // 'project_thumbnail'   => $thumbUrl,
                     'project_code'        => $project->project_code,
                     'project_name'        => $project->project_name,
                     'client_name'         => $project->client_name,
                     'status'              => $project->status,
                     'progress'            => $project->progress,
                     'due_date'            => optional($project->due_date)->format('Y-m-d'),
-                    'assigned_user_images' => $assignedUserImages,
+                    // 'assigned_user_images' => $assignedUserImages,
                     'total_tasks'         => (int) ($project->total_tasks ?? 0),
                     'completed_tasks'     => (int) ($project->completed_tasks ?? 0),
                 ];

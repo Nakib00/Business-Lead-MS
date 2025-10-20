@@ -66,23 +66,4 @@ class Project extends Model
             $this->attributes['category'] = implode(',', array_map('trim', $value));
         }
     }
-
-    public function getProjectThumbnailUrlAttribute(): ?string
-    {
-        $val = $this->project_thumbnail;
-        if (!$val) return null;
-
-        // If it's already a full URL, just return it
-        if (Str::startsWith($val, ['http://', 'https://'])) {
-            return $val;
-        }
-
-        // If it already includes the folder, use as-is; otherwise prepend
-        $relative = Str::startsWith($val, ['projectThumbnails/'])
-            ? $val
-            : 'projectThumbnails/' . ltrim($val, '/');
-
-        // Generate a public URL (=> /storage/projectThumbnails/...)
-        return Storage::disk('public')->url($relative);
-    }
 }
