@@ -103,4 +103,76 @@ class ProjectController extends Controller
             return $this->serverErrorResponse('Failed to create project', $e->getMessage());
         }
     }
+
+    /**
+     * PATCH /projects/{project}/priority
+     * Body: { "priority": "low" | "medium" | "high" }
+     */
+    public function updatePriority(Request $request, Project $project)
+    {
+        try {
+            $user = $request->user();
+            if (!$user) return $this->unauthorizedResponse('Login required');
+
+            $data = $request->validate([
+                'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
+            ]);
+
+            $project->update(['priority' => $data['priority']]);
+
+            return $this->successResponse($project->fresh(), 'Priority updated');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to update priority', $e->getMessage());
+        }
+    }
+
+    /**
+     * PATCH /projects/{project}/status
+     * Body: { "status": 0|1|2|3 }  // 0=pending,1=active,2=completed,3=on_hold
+     */
+    public function updateStatus(Request $request, Project $project)
+    {
+        try {
+            $user = $request->user();
+            if (!$user) return $this->unauthorizedResponse('Login required');
+
+            $data = $request->validate([
+                'status' => ['required', 'integer', 'between:0,3'],
+            ]);
+
+            $project->update(['status' => (int) $data['status']]);
+
+            return $this->successResponse($project->fresh(), 'Status updated');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to update status', $e->getMessage());
+        }
+    }
+
+    /**
+     * PATCH /projects/{project}/progress
+     * Body: { "progress": 0..100 }
+     */
+    public function updateProgress(Request $request, Project $project)
+    {
+        try {
+            $user = $request->user();
+            if (!$user) return $this->unauthorizedResponse('Login required');
+
+            $data = $request->validate([
+                'progress' => ['required', 'integer', 'between:0,100'],
+            ]);
+
+            $project->update(['progress' => (int) $data['progress']]);
+
+            return $this->successResponse($project->fresh(), 'Progress updated');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to update progress', $e->getMessage());
+        }
+    }
 }
