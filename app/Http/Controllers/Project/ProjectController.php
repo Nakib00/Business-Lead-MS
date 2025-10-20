@@ -319,4 +319,51 @@ class ProjectController extends Controller
             return $this->serverErrorResponse('Failed to remove user', $e->getMessage());
         }
     }
+
+    public function destroy(Request $request, Project $project)
+    {
+        try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            DB::transaction(function () use ($project) {
+
+                $this->deleteProjectThumbnailFile($project->project_thumbnail);
+
+                $project->delete();
+            });
+
+            return $this->successResponse(null, 'Project deleted');
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to delete project', $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete a stored thumbnail file whether it is a relative public path
+     */
+    protected function deleteProjectThumbnailFile(?string $value): void
+    {
+        if (empty($value)) return;
+
+        $prefix = rtrim(config('app.url'), '/') . '/storage/';
+        if (Str::startsWith($value, $prefix)) {
+            // Convert URL -> relative path under 'public' disk
+            $relative = ltrim(substr($value, strlen($prefix)), '/');
+            if ($relative && Storage::disk('public')->exists($relative)) {
+                Storage::disk('public')->delete($relative);
+            }
+            return;
+        }
+        $absolutePublic = public_path($value);
+        if (File::exists($absolutePublic)) {
+            File::delete($absolutePublic);
+            return;
+        }
+        if (Storage::disk('public')->exists($value)) {
+            Storage::disk('public')->delete($value);
+            return;
+        }
+    }
 }

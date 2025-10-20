@@ -14,5 +14,7 @@ Route::middleware('auth:api')->group(function () {
 
         Route::post('/users/{project}',        [ProjectController::class, 'assignUsers']);
         Route::delete('/users/{project}/{user}', [ProjectController::class, 'removeUser']);
+
+        Route::delete('/{project}', [ProjectController::class, 'destroy']);
     });
 });

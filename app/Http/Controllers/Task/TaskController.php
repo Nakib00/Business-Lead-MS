@@ -9,6 +9,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class TaskController extends Controller
 {
@@ -145,6 +146,36 @@ class TaskController extends Controller
             return $this->successResponse($task->fresh('users'), 'User removed from task');
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to remove user from task', $e->getMessage());
+        }
+    }
+
+    /**
+     * DELETE /projects/{project}/tasks/{task}
+     * Deletes the task and removes assigned users.
+     */
+    public function destroy(Request $request, Project $project, Task $task)
+    {
+        try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            // Ensure the task belongs to the project from the URL
+            if ($task->project_id !== $project->id) {
+                return $this->notFoundResponse('Task does not belong to this project');
+            }
+
+            DB::transaction(function () use ($task) {
+                // Detach users (extra safe even if FK has ON DELETE CASCADE)
+                $task->users()->detach();
+
+                // Delete the task (will cascade delete pivot rows if FK is set that way)
+                $task->delete();
+            });
+
+            return $this->successResponse(null, 'Task deleted');
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to delete task', $e->getMessage());
         }
     }
 }

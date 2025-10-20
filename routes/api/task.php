@@ -9,5 +9,7 @@ Route::middleware('auth:api')->group(function () {
 
         Route::post('/tasks/users/{project}/{task}',        [TaskController::class, 'assignUsers']);
         Route::delete('/tasks/users/{project}/{task}/{user}', [TaskController::class, 'removeUser']);
+
+        Route::delete('/{project}/{task}', [TaskController::class, 'destroy']);
     });
 });
