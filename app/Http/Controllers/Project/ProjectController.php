@@ -435,6 +435,7 @@ class ProjectController extends Controller
             $data = $paginator->getCollection()->map(function (Project $project) {
                 return [
                     'id'               => $project->id,
+                    'project_thumbnail'  => $project->project_thumbnail ? Storage::url($project->profile_image) : null,
                     'project_code'     => $project->project_code,
                     'project_name'     => $project->project_name,
                     'client_name'      => $project->client_name,
@@ -534,7 +535,7 @@ class ProjectController extends Controller
                 'due_date'           => optional($project->due_date)->format('Y-m-d'),
                 'status'             => $project->status,
                 'progress'           => $project->progress,
-                'project_thumbnail'  => $project->project_thumbnail? Storage::url($project->profile_image) : null,
+                'project_thumbnail'  => $project->project_thumbnail ? Storage::url($project->profile_image) : null,
                 'created_at'         => optional($project->created_at)->toDateTimeString(),
                 'updated_at'         => optional($project->updated_at)->toDateTimeString(),
 
