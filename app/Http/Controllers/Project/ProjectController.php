@@ -535,7 +535,9 @@ class ProjectController extends Controller
                 'due_date'           => optional($project->due_date)->format('Y-m-d'),
                 'status'             => $project->status,
                 'progress'           => $project->progress,
-                // 'project_thumbnail'  => $project->project_thumbnail ? Storage::url($project->profile_image) : null,
+                'project_thumbnail' => $project->project_thumbnail
+                    ? Storage::url($project->project_thumbnail)  
+                    : null,
                 'created_at'         => optional($project->created_at)->toDateTimeString(),
                 'updated_at'         => optional($project->updated_at)->toDateTimeString(),
 
