@@ -53,8 +53,7 @@ class ProjectController extends Controller
                 $thumbnailFullUrl = null;
                 if ($request->hasFile('project_thumbnail')) {
                     $imagePath = $request->file('project_thumbnail')->store('projectThumbnails', 'public');
-                    // Store FULL URL (more robust than concatenating /storage/app/public/)
-                    $thumbnailFullUrl = url(Storage::url($imagePath));
+                    $thumbnailFullUrl = env('APP_URL') . '/storage/app/public/' . $imagePath;
                 }
 
                 $payload = [
@@ -67,7 +66,7 @@ class ProjectController extends Controller
                     'budget'              => $validated['budget'] ?? null,
                     'due_date'            => $validated['due_date'] ?? null,
 
-                    'admin_id'            => $adminId,         
+                    'admin_id'            => $adminId,
 
                     // Save FULL URL directly in DB if you want that behavior:
                     'project_thumbnail'   => $thumbnailFullUrl,
