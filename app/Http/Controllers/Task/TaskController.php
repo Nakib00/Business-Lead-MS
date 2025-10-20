@@ -296,43 +296,60 @@ class TaskController extends Controller
     public function show(Request $request, Task $task)
     {
         try {
-            if (!$request->user()) {
+            // Require login
+            $user = Auth::user();
+            if (!$user) {
                 return $this->unauthorizedResponse('Login required');
             }
 
-            // Eager-load users (id, name, profile_image) and (optionally) project
+            // Determine effective admin id (same logic used elsewhere)
+            $effectiveAdminId = $user->reg_user_id ?: $user->id;
+
+            // Ensure we have the project's admin_id for access check
             $task->loadMissing([
-                'users:id,name,profile_image',
-                'project:id,project_name' // optional, remove if not needed
+                'project:id,admin_id,project_name',      // include admin_id for check; name if you want to return it
+                'users:id,name,profile_image',           // minimal fields; accessor uses profile_image
             ]);
 
+            // Enforce access: only if the task's project belongs to this effective admin
+            if (!$task->project || (int)$task->project->admin_id !== (int)$effectiveAdminId) {
+                // Hide existence to non-owners
+                return $this->notFoundResponse('Task not found');
+                // or: return $this->forbiddenResponse('You are not allowed to view this task');
+            }
+
+            // Map assigned users using the accessor for clean URLs
             $assignedUsers = $task->users->map(function ($u) {
                 return [
-                    'id'    => $u->id,
-                    'name'  => $u->name,
-                    'profile_image' => $u->profile_image
-                        ? (Str::startsWith($u->profile_image, ['http://', 'https://'])
-                            ? $u->profile_image
-                            : Storage::url($u->profile_image))
-                        : null,
+                    'id'                => $u->id,
+                    'name'              => $u->name,
+                    'profile_image_url' => $u->profile_image_url, // <-- accessor on User model
                 ];
             })->values()->all();
 
+            // Build response payload
             $data = [
-                'id'          => $task->id,
-                'project_id'  => $task->project_id,
-                'task_name'   => $task->task_name,
-                'description' => $task->description,
-                'status'      => $task->status,    // 0=pending,1=in_progress,2=done,3=blocked
-                'priority'    => $task->priority,  // low|medium|high
-                'category'    => $task->category,  // CSV as stored
-                'due_date'    => optional($task->due_date)->format('Y-m-d'),
+                'id'            => $task->id,
+                'project_id'    => $task->project_id,
+                'task_name'     => $task->task_name,
+                'description'   => $task->description,
+                'status'        => (int) $task->status,     // 0=pending,1=in_progress,2=done,3=blocked
+                'priority'      => $task->priority,         // low|medium|high
+                'category'      => $task->category,         // CSV as stored
+                'due_date'      => optional($task->due_date)->format('Y-m-d'),
                 'assigned_users' => $assignedUsers,
 
-                // Optional convenience:
-                'project' => $task->relationLoaded('project') ? $task->project : null,
-                'created_at' => optional($task->created_at)->toDateTimeString(),
-                'updated_at' => optional($task->updated_at)->toDateTimeString(),
+                // Optional convenience block (only if you want to expose it)
+                'project'       => $task->relationLoaded('project')
+                    ? [
+                        'id'          => $task->project->id,
+                        'project_name' => $task->project->project_name,
+                        'admin_id'    => (int) $task->project->admin_id,
+                    ]
+                    : null,
+
+                'created_at'    => optional($task->created_at)->toDateTimeString(),
+                'updated_at'    => optional($task->updated_at)->toDateTimeString(),
             ];
 
             return $this->successResponse($data, 'Task fetched');
