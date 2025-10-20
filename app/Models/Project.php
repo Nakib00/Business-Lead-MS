@@ -75,11 +75,24 @@ class Project extends Model
     {
         $val = $this->attributes['project_thumbnail'] ?? null;
         if (!$val) {
-            return asset('images/placeholders/project.png'); // optional fallback
+            return asset('images/placeholders/project.png'); // optional
         }
-        if (Str::startsWith($val, ['https://hubbackend.desklago.com/'])) {
-            return $val; // already full URL
+
+
+        if (Str::startsWith($val, ['http://', 'https://', '//'])) {
+            return $val;
         }
-        return Storage::disk('public')->url($val); // -> "/storage/<path>"
+
+   
+        if (Str::startsWith($val, ['/storage/'])) {
+            return asset(ltrim($val, '/')); // -> http(s)://domain/storage/...
+        }
+
+        if (Str::contains($val, 'storage/app/public/')) {
+            $rel = Str::after($val, 'storage/app/public/');
+            return asset('storage/' . ltrim($rel, '/'));
+        }
+
+        return Storage::disk('public')->url($val);
     }
 }
