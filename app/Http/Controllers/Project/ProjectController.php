@@ -377,23 +377,35 @@ class ProjectController extends Controller
                 return $this->unauthorizedResponse('Login required');
             }
 
-            $perPage = (int) ($request->query('per_page', 15));
+            // Validate/normalize query params
+            $request->validate([
+                'limit'      => ['nullable', 'integer', 'min:1', 'max:100'],
+                'page'       => ['nullable', 'integer', 'min:1'],
+                'search'     => ['nullable', 'string', 'max:255'],
+                'status'     => ['nullable', 'integer', 'between:0,3'],
+                'priority'   => ['nullable', Rule::in(['low', 'medium', 'high'])],
+                'due_date'   => ['nullable', 'date'],
+                'due_before' => ['nullable', 'date'],
+                'due_after'  => ['nullable', 'date'],
+            ]);
 
-            // Eager-load users (only id, profile_image) and count tasks (total & completed)
+            $limit = (int) $request->query('limit', 5);   // default 5
+            $page  = (int) $request->query('page', 1);    // default page 1
+
             $query = Project::query()
                 ->select(['id', 'project_code', 'project_name', 'client_name', 'status', 'progress', 'due_date'])
                 ->with([
-                    'users:id,profile_image' // we only need these columns for images
+                    'users:id,profile_image'
                 ])
                 ->withCount([
                     'tasks as total_tasks',
                     'tasks as completed_tasks' => function ($q) {
-                        $q->where('status', 2); // status=2 => completed
+                        $q->where('status', 2);
                     },
                 ])
-                ->orderByDesc('id');
+                ->orderByDesc('id'); // descending
 
-            // Optional quick search filters
+            // Filters
             if ($s = $request->query('search')) {
                 $query->where(function ($q) use ($s) {
                     $q->where('project_name', 'like', "%$s%")
@@ -401,8 +413,14 @@ class ProjectController extends Controller
                         ->orWhere('project_code', 'like', "%$s%");
                 });
             }
-            if ($status = $request->query('status')) {
-                $query->where('status', (int)$status);
+            if (!is_null($request->query('status'))) {
+                $query->where('status', (int) $request->query('status'));
+            }
+            if ($priority = $request->query('priority')) {
+                $query->where('priority', $priority);
+            }
+            if ($dueExact = $request->query('due_date')) {
+                $query->whereDate('due_date', '=', $dueExact);
             }
             if ($dueBefore = $request->query('due_before')) {
                 $query->whereDate('due_date', '<=', $dueBefore);
@@ -411,32 +429,33 @@ class ProjectController extends Controller
                 $query->whereDate('due_date', '>=', $dueAfter);
             }
 
-            $paginator = $query->paginate($perPage);
+            // Use custom page & limit
+            $paginator = $query->paginate($limit, ['*'], 'page', $page);
 
-            // Transform rows to required shape
             $data = $paginator->getCollection()->map(function (Project $project) {
                 return [
-                    'id'             => $project->id,
-                    'project_code'   => $project->project_code,
-                    'project_name'   => $project->project_name,
-                    'client_name'    => $project->client_name,
-                    'status'         => $project->status,
-                    'progress'       => $project->progress,
-                    'due_date'       => optional($project->due_date)->format('Y-m-d'),
+                    'id'               => $project->id,
+                    'project_code'     => $project->project_code,
+                    'project_name'     => $project->project_name,
+                    'client_name'      => $project->client_name,
+                    'status'           => $project->status,
+                    'progress'         => $project->progress,
+                    'due_date'         => optional($project->due_date)->format('Y-m-d'),
                     'assigned_user_images' => $project->users->map(function ($u) {
-                        // Build a URL if a relative path is stored; keep as-is if already a full URL
                         if (!$u->profile_image) return null;
-                        return (Str::startsWith($u->profile_image, ['http://', 'https://']))
+                        // Full URL stays; relative path -> Storage::url()
+                        return Str::startsWith($u->profile_image, ['http://', 'https://'])
                             ? $u->profile_image
-                            : url($u->profile_image);
+                            : Storage::url($u->profile_image);
                     })->filter()->values()->all(),
-                    'total_tasks'    => (int) ($project->total_tasks ?? 0),
-                    'completed_tasks' => (int) ($project->completed_tasks ?? 0),
+                    'total_tasks'      => (int) ($project->total_tasks ?? 0),
+                    'completed_tasks'  => (int) ($project->completed_tasks ?? 0),
                 ];
             })->values();
 
-            // Use your paginated response wrapper
             return $this->paginatedResponse($data, $paginator, 'Projects fetched');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to fetch projects', $e->getMessage());
         }
