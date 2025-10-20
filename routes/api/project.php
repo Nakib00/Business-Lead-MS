@@ -5,7 +5,8 @@ use App\Http\Controllers\Project\ProjectController;
 
 Route::middleware('auth:api')->group(function () {
     Route::prefix('projects')->group(function () {
-        Route::get('/', [ProjectController::class, 'indexSummary']); 
+        Route::get('/', [ProjectController::class, 'indexSummary']);
+        Route::get('/details/{project}', [ProjectController::class, 'showDetails']);
         Route::post('/', [ProjectController::class, 'store']);
         Route::put('/{project}', [ProjectController::class, 'updateDetails']);
 

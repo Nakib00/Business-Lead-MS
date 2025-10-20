@@ -460,4 +460,100 @@ class ProjectController extends Controller
             return $this->serverErrorResponse('Failed to fetch projects', $e->getMessage());
         }
     }
+
+    public function showDetails(Request $request, Project $project)
+    {
+        try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            // Eager load:
+            // - project users (id, name, profile_image)
+            // - tasks with their users (id, name, profile_image)
+            // - counts for total & completed tasks
+            $project->loadMissing([
+                'users:id,name,profile_image',
+                'tasks' => function ($q) {
+                    $q->orderByDesc('id');
+                },
+                'tasks.users:id,name,profile_image',
+            ])->loadCount([
+                'tasks as total_tasks',
+                'tasks as completed_tasks' => function ($q) {
+                    $q->where('status', 2);
+                },
+            ]);
+
+            // Map project assigned users
+            $assignedUsers = $project->users->map(function ($u) {
+                return [
+                    'id'    => $u->id,
+                    'name'  => $u->name,
+                    'profile_image' => $u->profile_image
+                        ? (Str::startsWith($u->profile_image, ['http://', 'https://'])
+                            ? $u->profile_image
+                            : Storage::url($u->profile_image))
+                        : null,
+                ];
+            })->values()->all();
+
+            // Map tasks and each task's assigned users
+            $tasks = $project->tasks->map(function ($t) {
+                $taskUsers = $t->users->map(function ($u) {
+                    return [
+                        'id'    => $u->id,
+                        'name'  => $u->name,
+                        'profile_image' => $u->profile_image
+                            ? (Str::startsWith($u->profile_image, ['http://', 'https://'])
+                                ? $u->profile_image
+                                : Storage::url($u->profile_image))
+                            : null,
+                    ];
+                })->values()->all();
+
+                return [
+                    'id'          => $t->id,
+                    'task_name'   => $t->task_name,
+                    'description' => $t->description,
+                    'status'      => $t->status,        // 0=pending,1=in_progress,2=done,3=blocked
+                    'priority'    => $t->priority,      // low|medium|high
+                    'category'    => $t->category,      // CSV as stored
+                    'due_date'    => optional($t->due_date)->format('Y-m-d'),
+                    'assigned_users' => $taskUsers,
+                ];
+            })->values()->all();
+
+            // Build final payload (project "all info" + extras)
+            $data = [
+                // Project core columns (adjust/add if you have more)
+                'id'                 => $project->id,
+                'project_code'       => $project->project_code,
+                'project_name'       => $project->project_name,
+                'client_name'        => $project->client_name,
+                'project_description' => $project->project_description,
+                'category'           => $project->category,
+                'priority'           => $project->priority,
+                'budget'             => $project->budget,
+                'due_date'           => optional($project->due_date)->format('Y-m-d'),
+                'status'             => $project->status,
+                'progress'           => $project->progress,
+                'project_thumbnail'  => $project->project_thumbnail, // whatever you store (URL or relative)
+                'created_at'         => optional($project->created_at)->toDateTimeString(),
+                'updated_at'         => optional($project->updated_at)->toDateTimeString(),
+
+                // Aggregates
+                'total_tasks'        => (int) ($project->total_tasks ?? 0),
+                'completed_tasks'    => (int) ($project->completed_tasks ?? 0),
+
+                // Relationships
+                'assigned_users'     => $assignedUsers,
+                'tasks'              => $tasks,
+            ];
+
+            return $this->successResponse($data, 'Project details fetched');
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to fetch project details', $e->getMessage());
+        }
+    }
 }
