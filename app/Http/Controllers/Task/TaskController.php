@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\User;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
     use ApiResponseTrait;
-    
+
     public function storeForProject(Request $request, Project $project)
     {
         try {
@@ -25,11 +26,11 @@ class TaskController extends Controller
                 'task_name'   => ['required', 'string', 'max:255'],
                 'description' => ['nullable', 'string'],
                 'due_date'    => ['nullable', 'date'],
-                'priority'    => ['required', Rule::in(['low','medium','high'])],
+                'priority'    => ['required', Rule::in(['low', 'medium', 'high'])],
                 'category'    => ['nullable'], // string or array
-                'user_id'     => ['nullable','integer','exists:users,id'],
-                'user_ids'    => ['nullable','array','min:1'],
-                'user_ids.*'  => ['integer','exists:users,id'],
+                'user_id'     => ['nullable', 'integer', 'exists:users,id'],
+                'user_ids'    => ['nullable', 'array', 'min:1'],
+                'user_ids.*'  => ['integer', 'exists:users,id'],
             ]);
 
             // Normalize category (CSV)
@@ -71,14 +72,79 @@ class TaskController extends Controller
                 $task->users()->syncWithoutDetaching($ids);
             }
 
-            $task->load(['project','users']);
+            $task->load(['project', 'users']);
 
             return $this->successResponse($task, 'Task created', 201);
-
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator->errors());
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to create task', $e->getMessage());
+        }
+    }
+
+    public function assignUsers(Request $request, Project $project, Task $task)
+    {
+        try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            // Ensure the task belongs to the project from the URL
+            if ($task->project_id !== $project->id) {
+                return $this->notFoundResponse('Task does not belong to this project');
+            }
+
+            // Normalize/validate payload
+            $mode = $request->input('mode', 'attach');
+            $request->validate([
+                'mode'       => ['nullable', Rule::in(['attach', 'sync'])],
+                'user_id'    => ['nullable', 'integer', 'exists:users,id'],
+                'user_ids'   => ['nullable', 'array', 'min:1'],
+                'user_ids.*' => ['integer', 'exists:users,id'],
+            ]);
+
+            $ids = [];
+            if ($request->filled('user_ids')) {
+                $ids = is_array($request->user_ids) ? $request->user_ids : [$request->user_ids];
+            } elseif ($request->filled('user_id')) {
+                $ids = [(int) $request->user_id];
+            }
+
+            if (empty($ids)) {
+                return $this->validationErrorResponse(['At least one user_id is required.']);
+            }
+
+            $ids = array_values(array_unique(array_map('intval', $ids)));
+
+            if ($mode === 'sync') {
+                $task->users()->sync($ids);
+            } else {
+                $task->users()->syncWithoutDetaching($ids);
+            }
+
+            return $this->successResponse($task->fresh('users'), 'Users assigned to task');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to assign users to task', $e->getMessage());
+        }
+    }
+    public function removeUser(Request $request, Project $project, Task $task, User $user)
+    {
+        try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            if ($task->project_id !== $project->id) {
+                return $this->notFoundResponse('Task does not belong to this project');
+            }
+
+            $task->users()->detach($user->id);
+
+            return $this->successResponse($task->fresh('users'), 'User removed from task');
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to remove user from task', $e->getMessage());
         }
     }
 }
