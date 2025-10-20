@@ -9,9 +9,9 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/{task}', [TaskController::class, 'show']);
         Route::post('/{project}', [TaskController::class, 'storeForProject']);
 
-        Route::patch('/tasks/{task}/status',   [TaskController::class, 'updateStatus']);
-        Route::patch('/tasks/{task}/priority', [TaskController::class, 'updatePriority']);
-        Route::patch('/tasks/{task}/category', [TaskController::class, 'updateCategory']);
+        Route::patch('/tasks/status/{task}',   [TaskController::class, 'updateStatus']);
+        Route::patch('/tasks/priority/{task}', [TaskController::class, 'updatePriority']);
+        Route::patch('/tasks/category/{task}', [TaskController::class, 'updateCategory']);
 
         // Full update of selected fields
         Route::patch('/tasks/{task}',          [TaskController::class, 'updateDetails']);
