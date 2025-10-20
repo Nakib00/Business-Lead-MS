@@ -32,6 +32,7 @@ class ProjectController extends Controller
                 'project_name'        => ['required', 'string', 'max:255'],
                 'client_name'         => ['required', 'string', 'max:255'],
                 'project_description' => ['nullable', 'string'],
+                'category'            => ['nullable', 'string', 'max:255'],
                 'priority'            => ['required', Rule::in(['low', 'medium', 'high'])],
                 'budget'              => ['nullable', 'numeric', 'min:0'],
                 'due_date'            => ['nullable', 'date'],
@@ -64,6 +65,7 @@ class ProjectController extends Controller
                     'client_name'         => $validated['client_name'],
                     'project_description' => $validated['project_description'] ?? null,
                     'priority'            => $validated['priority'],
+                    'category'            => $validated['category'] ?? null,
                     'budget'              => $validated['budget'] ?? null,
                     'due_date'            => $validated['due_date'] ?? null,
                     'project_thumbnail'   => $thumbnailPath, // store RELATIVE PATH in DB
