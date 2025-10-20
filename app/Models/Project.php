@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class Project extends Model
 {
@@ -64,5 +65,12 @@ class Project extends Model
         if (is_array($value)) {
             $this->attributes['category'] = implode(',', array_map('trim', $value));
         }
+    }
+
+    public function getProjectThumbnailUrlAttribute(): ?string
+    {
+        if (!$this->project_thumbnail) return null;
+        // public disk URL (e.g., /storage/projects/thumbnails/xxx.png)
+        return Storage::disk('public')->url($this->project_thumbnail);
     }
 }
