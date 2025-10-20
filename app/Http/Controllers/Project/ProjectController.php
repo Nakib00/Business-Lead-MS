@@ -471,14 +471,28 @@ class ProjectController extends Controller
     public function showDetails(Request $request, Project $project)
     {
         try {
-            if (!$request->user()) {
+            // Require login
+            $user = Auth::user();
+            if (!$user) {
                 return $this->unauthorizedResponse('Login required');
             }
 
+            // Determine effective admin id (same logic as indexSummary)
+            $effectiveAdminId = $user->reg_user_id ?: $user->id;
+
+            // Enforce access: only show if project's admin_id matches effective admin
+            if ((int)$project->admin_id !== (int)$effectiveAdminId) {
+                // Choose one of these based on your API style:
+                // return $this->forbiddenResponse('You are not allowed to view this project');
+                return $this->notFoundResponse('Project not found'); // hides existence
+            }
+
+            // Eager-load relationships (minimal fields) + task counts
             $project->loadMissing([
                 'users:id,name,profile_image',
                 'tasks' => function ($q) {
-                    $q->orderByDesc('id');
+                    $q->orderByDesc('id')
+                        ->select(['id', 'project_id', 'task_name', 'description', 'status', 'priority', 'category', 'due_date']);
                 },
                 'tasks.users:id,name,profile_image',
             ])->loadCount([
@@ -488,72 +502,65 @@ class ProjectController extends Controller
                 },
             ]);
 
-            // Map project assigned users
+            // Map project assigned users (use accessor for URL)
             $assignedUsers = $project->users->map(function ($u) {
                 return [
-                    'id'    => $u->id,
-                    'name'  => $u->name,
-                    'profile_image' => $u->profile_image
-                        ? (Str::startsWith($u->profile_image, ['http://', 'https://'])
-                            ? $u->profile_image
-                            : Storage::url($u->profile_image))
-                        : null,
+                    'id'                => $u->id,
+                    'name'              => $u->name,
+                    'profile_image_url' => $u->profile_image_url, // <-- accessor from User model
                 ];
             })->values()->all();
 
-            // Map tasks and each task's assigned users
+            // Map tasks and each task's assigned users (use accessor for URL)
             $tasks = $project->tasks->map(function ($t) {
                 $taskUsers = $t->users->map(function ($u) {
                     return [
-                        'id'    => $u->id,
-                        'name'  => $u->name,
-                        'profile_image' => $u->profile_image
-                            ? (Str::startsWith($u->profile_image, ['http://', 'https://'])
-                                ? $u->profile_image
-                                : Storage::url($u->profile_image))
-                            : null,
+                        'id'                => $u->id,
+                        'name'              => $u->name,
+                        'profile_image_url' => $u->profile_image_url, // <-- accessor
                     ];
                 })->values()->all();
 
                 return [
-                    'id'          => $t->id,
-                    'task_name'   => $t->task_name,
-                    'description' => $t->description,
-                    'status'      => $t->status,        // 0=pending,1=in_progress,2=done,3=blocked
-                    'priority'    => $t->priority,      // low|medium|high
-                    'category'    => $t->category,      // CSV as stored
-                    'due_date'    => optional($t->due_date)->format('Y-m-d'),
-                    'assigned_users' => $taskUsers,
+                    'id'              => $t->id,
+                    'task_name'       => $t->task_name,
+                    'description'     => $t->description,
+                    'status'          => (int) $t->status,     // 0=pending,1=in_progress,2=done,3=blocked
+                    'priority'        => $t->priority,         // low|medium|high
+                    'category'        => $t->category,         // CSV as stored
+                    'due_date'        => optional($t->due_date)->format('Y-m-d'),
+                    'assigned_users'  => $taskUsers,
                 ];
             })->values()->all();
 
-            // Build final payload (project "all info" + extras)
+            // Build final payload
             $data = [
-                // Project core columns (adjust/add if you have more)
-                'id'                 => $project->id,
-                'project_code'       => $project->project_code,
-                'project_name'       => $project->project_name,
-                'client_name'        => $project->client_name,
-                'project_description' => $project->project_description,
-                'category'           => $project->category,
-                'priority'           => $project->priority,
-                'budget'             => $project->budget,
-                'due_date'           => optional($project->due_date)->format('Y-m-d'),
-                'status'             => $project->status,
-                'progress'           => $project->progress,
-                'project_thumbnail' => $project->project_thumbnail
-                    ? Storage::url($project->project_thumbnail)
-                    : null,
-                'created_at'         => optional($project->created_at)->toDateTimeString(),
-                'updated_at'         => optional($project->updated_at)->toDateTimeString(),
+                'id'                   => $project->id,
+                'project_code'         => $project->project_code,
+                'project_name'         => $project->project_name,
+                'client_name'          => $project->client_name,
+                'project_description'  => $project->project_description,
+                'category'             => $project->category,
+                'priority'             => $project->priority,
+                'budget'               => $project->budget,
+                'due_date'             => optional($project->due_date)->format('Y-m-d'),
+                'status'               => (int) $project->status,
+                'progress'             => (int) $project->progress,
+                'admin_id'             => (int) $project->admin_id,
+
+                // Use accessor for a clean, correct URL
+                'project_thumbnail_url' => $project->project_thumbnail_url,
+
+                'created_at'           => optional($project->created_at)->toDateTimeString(),
+                'updated_at'           => optional($project->updated_at)->toDateTimeString(),
 
                 // Aggregates
-                'total_tasks'        => (int) ($project->total_tasks ?? 0),
-                'completed_tasks'    => (int) ($project->completed_tasks ?? 0),
+                'total_tasks'          => (int) ($project->total_tasks ?? 0),
+                'completed_tasks'      => (int) ($project->completed_tasks ?? 0),
 
                 // Relationships
-                'assigned_users'     => $assignedUsers,
-                'tasks'              => $tasks,
+                'assigned_users'       => $assignedUsers,
+                'tasks'                => $tasks,
             ];
 
             return $this->successResponse($data, 'Project details fetched');
