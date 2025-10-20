@@ -468,10 +468,6 @@ class ProjectController extends Controller
                 return $this->unauthorizedResponse('Login required');
             }
 
-            // Eager load:
-            // - project users (id, name, profile_image)
-            // - tasks with their users (id, name, profile_image)
-            // - counts for total & completed tasks
             $project->loadMissing([
                 'users:id,name,profile_image',
                 'tasks' => function ($q) {
@@ -538,7 +534,7 @@ class ProjectController extends Controller
                 'due_date'           => optional($project->due_date)->format('Y-m-d'),
                 'status'             => $project->status,
                 'progress'           => $project->progress,
-                'project_thumbnail'  => $project->project_thumbnail, // whatever you store (URL or relative)
+                'project_thumbnail'  => $project->project_thumbnail? Storage::url($project->profile_image) : null,
                 'created_at'         => optional($project->created_at)->toDateTimeString(),
                 'updated_at'         => optional($project->updated_at)->toDateTimeString(),
 
