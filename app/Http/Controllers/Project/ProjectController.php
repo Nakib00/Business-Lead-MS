@@ -380,7 +380,7 @@ class ProjectController extends Controller
                     'status',
                     'progress',
                     'due_date',
-                    'project_thumbnail', // needed to transform to URL
+                    'project_thumbnail',
                 ])
                 ->with([
                     'users:id,profile_image'
@@ -423,7 +423,7 @@ class ProjectController extends Controller
 
                 return [
                     'id'                  => $project->id,
-                    // 'project_thumbnail'   => $thumbUrl,
+                    'project_thumbnail'   => $project->project_thumbnail ? Storage::url($project->project_thumbnail) : null,
                     'project_code'        => $project->project_code,
                     'project_name'        => $project->project_name,
                     'client_name'         => $project->client_name,
