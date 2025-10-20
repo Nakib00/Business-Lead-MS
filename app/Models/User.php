@@ -92,4 +92,18 @@ class User extends Authenticatable implements JWTSubject
             ->using(TaskUser::class)
             ->withTimestamps();
     }
+
+    protected $appends = ['profile_image_url'];
+
+    public function getProfileImageUrlAttribute()
+    {
+        $val = $this->attributes['profile_image'] ?? null;
+        if (!$val) {
+            return asset('images/placeholders/user.png'); // optional fallback
+        }
+        if (Str::startsWith($val, ['https://hubbackend.desklago.com/'])) {
+            return $val;
+        }
+        return Storage::disk('public')->url($val);
+    }
 }

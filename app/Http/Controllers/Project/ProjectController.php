@@ -353,7 +353,6 @@ class ProjectController extends Controller
     public function indexSummary(Request $request)
     {
         try {
-
             // Validate/normalize query params
             $request->validate([
                 'limit'      => ['nullable', 'integer', 'min:1', 'max:100'],
@@ -366,8 +365,8 @@ class ProjectController extends Controller
                 'due_after'  => ['nullable', 'date'],
             ]);
 
-            $limit     = (int) $request->query('limit', 5); // default 5
-            $page      = (int) $request->query('page', 1);  // default 1
+            $limit     = (int) $request->query('limit', 5);
+            $page      = (int) $request->query('page', 1);
             $s         = $request->query('search');
             $status    = $request->query('status');
             $priority  = $request->query('priority');
@@ -385,8 +384,12 @@ class ProjectController extends Controller
                     'progress',
                     'due_date',
                     'priority',
+                    'project_thumbnail', // <- needed for accessor
                 ])
-                // removed ->with('users') and thumbnail selection
+                ->with([
+                    // fetch minimal fields needed for summary; accessor uses profile_image
+                    'users:id,name,profile_image'
+                ])
                 ->withCount([
                     'tasks as total_tasks',
                     'tasks as completed_tasks' => function ($q) {
@@ -424,15 +427,24 @@ class ProjectController extends Controller
 
             $data = $paginator->getCollection()->map(function (Project $project) {
                 return [
-                    'id'                => $project->id,
-                    'project_code'      => $project->project_code,
-                    'project_name'      => $project->project_name,
-                    'client_name'       => $project->client_name,
-                    'status'            => (int) $project->status,
-                    'progress'          => (int) $project->progress,
-                    'due_date'          => optional($project->due_date)->format('Y-m-d'),
-                    'total_tasks'       => (int) ($project->total_tasks ?? 0),
-                    'completed_tasks'   => (int) ($project->completed_tasks ?? 0),
+                    'id'                      => $project->id,
+                    'project_code'            => $project->project_code,
+                    'project_name'            => $project->project_name,
+                    'client_name'             => $project->client_name,
+                    'status'                  => (int) $project->status,
+                    'progress'                => (int) $project->progress,
+                    'due_date'                => optional($project->due_date)->format('Y-m-d'),
+                    'priority'                => $project->priority,
+                    'project_thumbnail_url'   => $project->project_thumbnail_url,
+                    'total_tasks'             => (int) ($project->total_tasks ?? 0),
+                    'completed_tasks'         => (int) ($project->completed_tasks ?? 0),
+                    'assigned_users'          => $project->users->map(function ($u) {
+                        return [
+                            'id'                 => $u->id,
+                            'name'               => $u->name,
+                            'profile_image_url'  => $u->profile_image_url,
+                        ];
+                    })->values(),
                 ];
             })->values();
 

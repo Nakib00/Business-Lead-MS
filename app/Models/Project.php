@@ -67,4 +67,18 @@ class Project extends Model
             $this->attributes['category'] = implode(',', array_map('trim', $value));
         }
     }
+
+    protected $appends = ['project_thumbnail_url'];
+
+    public function getProjectThumbnailUrlAttribute()
+    {
+        $val = $this->attributes['project_thumbnail'] ?? null;
+        if (!$val) {
+            return asset('images/placeholders/project.png'); // optional fallback
+        }
+        if (Str::startsWith($val, ['https://hubbackend.desklago.com/'])) {
+            return $val; // already full URL
+        }
+        return Storage::disk('public')->url($val); // -> "/storage/<path>"
+    }
 }
