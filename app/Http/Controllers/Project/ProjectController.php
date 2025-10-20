@@ -368,8 +368,8 @@ class ProjectController extends Controller
                 'due_after'  => ['nullable', 'date'],
             ]);
 
-            $limit = (int) $request->query('limit', 5);   // default 5
-            $page  = (int) $request->query('page', 1);    // default 1
+            $limit = (int) $request->query('limit', 5); // default 5
+            $page  = (int) $request->query('page', 1);  // default 1
 
             $query = Project::query()
                 ->select([
@@ -380,18 +380,18 @@ class ProjectController extends Controller
                     'status',
                     'progress',
                     'due_date',
-                    'project_thumbnail', // <-- include so we can transform it
+                    'project_thumbnail', // needed to transform to URL
                 ])
                 ->with([
-                    'users:id,profile_image' // only what we need for avatars
+                    'users:id,profile_image'
                 ])
                 ->withCount([
                     'tasks as total_tasks',
                     'tasks as completed_tasks' => function ($q) {
-                        $q->where('status', 2); // completed
+                        $q->where('status', 2);
                     },
                 ])
-                ->orderByDesc('id'); // descending
+                ->orderByDesc('id');
 
             // Filters
             if ($s = $request->query('search')) {
@@ -417,46 +417,54 @@ class ProjectController extends Controller
                 $query->whereDate('due_date', '>=', $dueAfter);
             }
 
-            // Paginate with custom page/limit
             $paginator = $query->paginate($limit, ['*'], 'page', $page);
 
-            // Transform to required shape
             $data = $paginator->getCollection()->map(function (Project $project) {
-                // Build thumbnail URL from storage/app/public/projectThumbnails
+                // --- Project thumbnail URL (from storage/app/public/projectThumbnails) ---
                 $thumbUrl = null;
                 if (!empty($project->project_thumbnail)) {
                     if (Str::startsWith($project->project_thumbnail, ['http://', 'https://'])) {
-                        $thumbUrl = $project->project_thumbnail; // already full URL
+                        // already absolute
+                        $thumbUrl = $project->project_thumbnail;
                     } else {
-                        // ensure path begins with projectThumbnails/
+                        // accept either "projectThumbnails/filename.jpg" OR just "filename.jpg"
                         $relative = Str::startsWith($project->project_thumbnail, ['projectThumbnails/'])
                             ? $project->project_thumbnail
                             : 'projectThumbnails/' . ltrim($project->project_thumbnail, '/');
 
-                        // public URL => /storage/projectThumbnails/...
+                        // public disk URL -> /storage/projectThumbnails/filename.jpg
                         $thumbUrl = Storage::disk('public')->url($relative);
+
+                        // SAFEGUARD: if misconfigured and returns /storage/app/public/..., normalize it
+                        $thumbUrl = str_replace('/storage/app/public/', '/storage/', $thumbUrl);
                     }
                 }
 
-                return [
-                    'id'                 => $project->id,
-                    'project_thumbnail'  => $thumbUrl,
-                    'project_code'       => $project->project_code,
-                    'project_name'       => $project->project_name,
-                    'client_name'        => $project->client_name,
-                    'status'             => $project->status,
-                    'progress'           => $project->progress,
-                    'due_date'           => optional($project->due_date)->format('Y-m-d'),
-                    'assigned_user_images' => $project->users->map(function ($u) {
-                        if (!$u->profile_image) return null;
+                // --- Assigned users' profile images ---
+                $assignedUserImages = $project->users->map(function ($u) {
+                    if (!$u->profile_image) return null;
 
-                        // Full URL stays; relative path -> Storage::url()
-                        return Str::startsWith($u->profile_image, ['http://', 'https://'])
-                            ? $u->profile_image
-                            : Storage::url($u->profile_image);
-                    })->filter()->values()->all(),
-                    'total_tasks'        => (int) ($project->total_tasks ?? 0),
-                    'completed_tasks'    => (int) ($project->completed_tasks ?? 0),
+                    // Generate via Storage::url() for relative paths; keep full URLs as-is
+                    $url = Str::startsWith($u->profile_image, ['http://', 'https://'])
+                        ? $u->profile_image
+                        : Storage::url($u->profile_image);
+
+                    // SAFEGUARD: normalize if needed
+                    return str_replace('/storage/app/public/', '/storage/', $url);
+                })->filter()->values()->all();
+
+                return [
+                    'id'                  => $project->id,
+                    'project_thumbnail'   => $thumbUrl,
+                    'project_code'        => $project->project_code,
+                    'project_name'        => $project->project_name,
+                    'client_name'         => $project->client_name,
+                    'status'              => $project->status,
+                    'progress'            => $project->progress,
+                    'due_date'            => optional($project->due_date)->format('Y-m-d'),
+                    'assigned_user_images' => $assignedUserImages,
+                    'total_tasks'         => (int) ($project->total_tasks ?? 0),
+                    'completed_tasks'     => (int) ($project->completed_tasks ?? 0),
                 ];
             })->values();
 
@@ -467,6 +475,7 @@ class ProjectController extends Controller
             return $this->serverErrorResponse('Failed to fetch projects', $e->getMessage());
         }
     }
+
 
     public function showDetails(Request $request, Project $project)
     {
