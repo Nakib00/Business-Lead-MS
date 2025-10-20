@@ -12,6 +12,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
 {
@@ -184,9 +185,14 @@ class TaskController extends Controller
     public function indexSummary(Request $request)
     {
         try {
-            if (!$request->user()) {
+            // Require login
+            $user = Auth::user();
+            if (!$user) {
                 return $this->unauthorizedResponse('Login required');
             }
+
+            // Effective admin scope (same logic as your project indexSummary)
+            $effectiveAdminId = $user->reg_user_id ?: $user->id;
 
             // Validate/normalize query params
             $request->validate([
@@ -206,11 +212,15 @@ class TaskController extends Controller
 
             $query = Task::query()
                 ->select(['id', 'project_id', 'task_name', 'status', 'priority', 'category', 'due_date'])
+                // Scope tasks to projects owned by the effective admin
+                ->whereHas('project', function ($q) use ($effectiveAdminId) {
+                    $q->where('admin_id', $effectiveAdminId);
+                })
                 ->with([
-                    // Only need id & profile_image for assigned user avatars
-                    'users:id,profile_image'
+                    // minimal user fields; accessor uses profile_image
+                    'users:id,name,profile_image',
                 ])
-                ->orderByDesc('id'); // descending
+                ->orderByDesc('id');
 
             // Filters
             if ($pid = $request->query('project_id')) {
@@ -218,10 +228,11 @@ class TaskController extends Controller
             }
 
             if ($s = $request->query('search')) {
-                $query->where(function ($q) use ($s) {
-                    $q->where('task_name', 'like', "%$s%")
-                        ->orWhere('description', 'like', "%$s%")
-                        ->orWhere('category', 'like', "%$s%");
+                $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $s) . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->where('task_name', 'like', $like)
+                        ->orWhere('description', 'like', $like)
+                        ->orWhere('category', 'like', $like);
                 });
             }
 
@@ -248,23 +259,25 @@ class TaskController extends Controller
             // Paginate with custom page/limit
             $paginator = $query->paginate($limit, ['*'], 'page', $page);
 
-            // Transform response shape
+            // Transform response
             $data = $paginator->getCollection()->map(function (Task $task) {
                 return [
-                    'id'           => $task->id,
-                    'project_id'   => $task->project_id,
-                    'task_name'    => $task->task_name,
-                    'status'       => $task->status,     // 0..3
-                    'priority'     => $task->priority,   // low|medium|high
-                    'category'     => $task->category,   // CSV
-                    'due_date'     => optional($task->due_date)->format('Y-m-d'),
-                    'assigned_user_images' => $task->users->map(function ($u) {
-                        if (!$u->profile_image) return null;
-                        // If already full URL, keep it; else generate via Storage::url()
-                        return Str::startsWith($u->profile_image, ['http://', 'https://'])
-                            ? $u->profile_image
-                            : Storage::url($u->profile_image);
-                    })->filter()->values()->all(),
+                    'id'            => $task->id,
+                    'project_id'    => $task->project_id,
+                    'task_name'     => $task->task_name,
+                    'status'        => (int) $task->status,   // 0..3
+                    'priority'      => $task->priority,       // low|medium|high
+                    'category'      => $task->category,       // CSV
+                    'due_date'      => optional($task->due_date)->format('Y-m-d'),
+
+                    // Consistent with project index: return full user objects w/ accessor URL
+                    'assigned_users' => $task->users->map(function ($u) {
+                        return [
+                            'id'                => $u->id,
+                            'name'              => $u->name,
+                            'profile_image_url' => $u->profile_image_url, // <-- accessor from User model
+                        ];
+                    })->values()->all(),
                 ];
             })->values();
 
