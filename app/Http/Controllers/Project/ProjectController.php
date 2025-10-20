@@ -352,6 +352,9 @@ class ProjectController extends Controller
     public function indexSummary(Request $request)
     {
         try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required'); // 401
+            }
 
             // Validate/normalize query params
             $request->validate([
@@ -365,14 +368,14 @@ class ProjectController extends Controller
                 'due_after'  => ['nullable', 'date'],
             ]);
 
-            $limit = (int) $request->query('limit', 5); // default 5
-            $page  = (int) $request->query('page', 1);  // default 1
-            $s          = $request->query('search');
-            $status     = $request->query('status');
-            $priority   = $request->query('priority');
-            $dueExact   = $request->query('due_date');
-            $dueBefore  = $request->query('due_before');
-            $dueAfter   = $request->query('due_after');
+            $limit     = (int) $request->query('limit', 5); // default 5
+            $page      = (int) $request->query('page', 1);  // default 1
+            $s         = $request->query('search');
+            $status    = $request->query('status');
+            $priority  = $request->query('priority');
+            $dueExact  = $request->query('due_date');
+            $dueBefore = $request->query('due_before');
+            $dueAfter  = $request->query('due_after');
 
             $query = Project::query()
                 ->select([
@@ -383,14 +386,9 @@ class ProjectController extends Controller
                     'status',
                     'progress',
                     'due_date',
-                    'project_thumbnail',
                     'priority',
                 ])
-                ->with([
-                    'users' => function ($q) {
-                        $q->select('users.id', 'users.profile_image');
-                    },
-                ])
+                // removed ->with('users') and thumbnail selection
                 ->withCount([
                     'tasks as total_tasks',
                     'tasks as completed_tasks' => function ($q) {
@@ -427,27 +425,17 @@ class ProjectController extends Controller
             $paginator = $query->paginate($limit, ['*'], 'page', $page);
 
             $data = $paginator->getCollection()->map(function (Project $project) {
-                // Build assigned_user_images safely
-                $assignedUserImages = $project->users
-                    ->pluck('profile_image')
-                    ->filter()
-                    ->map(function ($path) {
-                        return Storage::url($path);
-                    })
-                    ->values();
-
                 return [
-                    'id'                    => $project->id,
-                    // 'project_thumbnail'     => $project->project_thumbnail ? Storage::url($project->project_thumbnail) : null,
-                    'project_code'          => $project->project_code,
-                    'project_name'          => $project->project_name,
-                    'client_name'           => $project->client_name,
-                    'status'                => (int) $project->status,
-                    'progress'              => (int) $project->progress,
-                    'due_date'              => optional($project->due_date)->format('Y-m-d'),
-                    'assigned_user_images'  => $assignedUserImages,
-                    'total_tasks'           => (int) ($project->total_tasks ?? 0),
-                    'completed_tasks'       => (int) ($project->completed_tasks ?? 0),
+                    'id'                => $project->id,
+                    'project_code'      => $project->project_code,
+                    'project_name'      => $project->project_name,
+                    'client_name'       => $project->client_name,
+                    'status'            => (int) $project->status,
+                    'progress'          => (int) $project->progress,
+                    'due_date'          => optional($project->due_date)->format('Y-m-d'),
+                    // removed 'project_thumbnail' and 'assigned_user_images'
+                    'total_tasks'       => (int) ($project->total_tasks ?? 0),
+                    'completed_tasks'   => (int) ($project->completed_tasks ?? 0),
                 ];
             })->values();
 
@@ -455,7 +443,6 @@ class ProjectController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator->errors());
         } catch (\Throwable $e) {
-            // Optional: log the exception message/trace
             return $this->serverErrorResponse('Failed to fetch projects', $e->getMessage());
         }
     }
