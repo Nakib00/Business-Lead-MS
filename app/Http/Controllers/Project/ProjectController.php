@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 use App\Models\User;
+use Illuminate\Support\Facades\File;
 
 class ProjectController extends Controller
 {
@@ -21,6 +22,7 @@ class ProjectController extends Controller
     {
         try {
             $user = Auth::user();
+            if (!$user) return $this->unauthorizedResponse('Login required');
 
             // Normalize user_ids input (accept single int or array)
             $incomingUserIds = $request->input('user_ids');
@@ -28,7 +30,7 @@ class ProjectController extends Controller
                 ? []
                 : (is_array($incomingUserIds) ? $incomingUserIds : [$incomingUserIds]);
 
-            // Validate input (note: project_thumbnail is now a file)
+            // Validate
             $validated = $request->validate([
                 'project_name'        => ['required', 'string', 'max:255'],
                 'client_name'         => ['required', 'string', 'max:255'],
@@ -37,29 +39,21 @@ class ProjectController extends Controller
                 'priority'            => ['required', Rule::in(['low', 'medium', 'high'])],
                 'budget'              => ['nullable', 'numeric', 'min:0'],
                 'due_date'            => ['nullable', 'date'],
-                'project_thumbnail'   => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'], // 5 MB
+                'project_thumbnail'   => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
                 'user_ids'            => ['nullable'],
                 'user_ids.*'          => ['integer', 'exists:users,id'],
             ]);
 
             $project = DB::transaction(function () use ($validated, $user, $userIds, $request) {
-                // Handle thumbnail upload (if provided)
-                $thumbnailPath = null;
+
+                $thumbnailUrlForDB = null;
+
                 if ($request->hasFile('project_thumbnail')) {
-                    $file = $request->file('project_thumbnail');
-                    // e.g., projects/thumbnails/PRJ-XXXXXX_20251020_650f3a2f.png
-                    $dir  = 'projects/thumbnails';
-                    $name = sprintf(
-                        '%s_%s.%s',
-                        'PRJ-' . Str::upper(Str::random(6)),
-                        now()->format('Ymd_His') . '_' . Str::random(8),
-                        $file->getClientOriginalExtension()
-                    );
-                    // save to "public" disk (storage/app/public/…)
-                    $thumbnailPath = $file->storeAs($dir, $name, 'public');
+                    $storedPath = $request->file('project_thumbnail')->store('projects/thumbnails', 'public');
+                    $thumbnailUrlForDB = env('APP_URL') . '/storage/app/public/' . $storedPath;
                 }
 
-                // Base payload for Project
+                // Base payload
                 $payload = [
                     'project_code'        => 'PRJ-' . Str::upper(Str::random(6)),
                     'project_name'        => $validated['project_name'],
@@ -69,7 +63,10 @@ class ProjectController extends Controller
                     'category'            => $validated['category'] ?? null,
                     'budget'              => $validated['budget'] ?? null,
                     'due_date'            => $validated['due_date'] ?? null,
-                    'project_thumbnail'   => $thumbnailPath, // store RELATIVE PATH in DB
+
+                    // Save FULL URL directly in DB per your requirement:
+                    'project_thumbnail'   => $thumbnailUrlForDB,
+
                     'status'              => 0,
                     'progress'            => 0,
                 ];
@@ -94,8 +91,8 @@ class ProjectController extends Controller
                 return $project->fresh(['users']);
             });
 
-            // Add a public URL in the response (from accessor below)
-            $project->append('project_thumbnail_url');
+            // You no longer need append('project_thumbnail_url') because we stored a full URL already.
+            // $project->append('project_thumbnail_url');
 
             return $this->successResponse($project, 'Project created', 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -104,6 +101,7 @@ class ProjectController extends Controller
             return $this->serverErrorResponse('Failed to create project', $e->getMessage());
         }
     }
+
 
     /**
      * PATCH /projects/{project}/priority
@@ -177,6 +175,7 @@ class ProjectController extends Controller
         }
     }
 
+
     public function updateDetails(Request $request, Project $project)
     {
         try {
@@ -184,7 +183,7 @@ class ProjectController extends Controller
                 return $this->unauthorizedResponse('Login required');
             }
 
-            // Validate inputs (all optional; use sometimes so only present fields are validated)
+            // Validate inputs (all optional; only provided fields are validated)
             $validated = $request->validate([
                 'project_name'        => ['sometimes', 'required', 'string', 'max:255'],
                 'client_name'         => ['sometimes', 'required', 'string', 'max:255'],
@@ -194,7 +193,7 @@ class ProjectController extends Controller
                 'project_thumbnail'   => ['sometimes', 'nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             ]);
 
-            // Prepare update payload from validated inputs
+            // Collect simple field updates
             $updates = [];
             foreach (['project_name', 'client_name', 'project_description', 'category', 'due_date'] as $field) {
                 if (array_key_exists($field, $validated)) {
@@ -202,46 +201,54 @@ class ProjectController extends Controller
                 }
             }
 
-            // If a file is uploaded, store it and (optionally) remove old one
+            // Handle thumbnail like your example (move() + relative path)
             if ($request->hasFile('project_thumbnail')) {
-                $file = $request->file('project_thumbnail');
+                $image     = $request->file('project_thumbnail');
+                // unique-ish filename: time + random + original name (optional sanitize)
+                $imageName = time() . '_' . \Illuminate\Support\Str::random(6) . '_' . $image->getClientOriginalName();
 
-                $dir  = 'projects/thumbnails';
-                $name = sprintf(
-                    'PRJ_%d_%s.%s',
-                    $project->id,
-                    now()->format('Ymd_His'),
-                    $file->getClientOriginalExtension()
-                );
+                // destination: public/projects/thumbnails
+                $destPath  = public_path('projects/thumbnails');
 
-                $newPath = $file->storeAs($dir, $name, 'public');
-
-                // delete old file if exists
-                if ($project->project_thumbnail && Storage::disk('public')->exists($project->project_thumbnail)) {
-                    Storage::disk('public')->delete($project->project_thumbnail);
+                // ensure directory exists
+                if (!File::exists($destPath)) {
+                    File::makeDirectory($destPath, 0755, true);
                 }
 
-                $updates['project_thumbnail'] = $newPath;
+                // delete old file if we stored a relative path earlier
+                if (!empty($project->project_thumbnail)) {
+                    $oldAbs = public_path($project->project_thumbnail);
+                    if (File::exists($oldAbs)) {
+                        File::delete($oldAbs);
+                    }
+                }
+
+                // move uploaded file
+                $image->move($destPath, $imageName);
+
+                // save RELATIVE path in DB
+                $updates['project_thumbnail'] = 'projects/thumbnails/' . $imageName;
             }
 
-            // Nothing to update?
             if (empty($updates)) {
                 return $this->successResponse($project->fresh(), 'No changes');
             }
 
             $project->update($updates);
 
-            // Attach a convenient URL in the response
-            $project = $project->fresh();
-            $project->append('project_thumbnail_url');
+            // If you want to also return a public URL alongside the stored relative path:
+            $fresh = $project->fresh();
+            $fresh->setAttribute('project_thumbnail_url', $fresh->project_thumbnail ? url($fresh->project_thumbnail) : null);
 
-            return $this->successResponse($project, 'Project updated');
+            return $this->successResponse($fresh, 'Project updated');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator->errors());
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to update project', $e->getMessage());
         }
     }
+
+
 
     public function assignUsers(Request $request, Project $project)
     {
