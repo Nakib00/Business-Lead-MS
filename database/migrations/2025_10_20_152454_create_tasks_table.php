@@ -13,12 +13,21 @@ return new class extends Migration
     {
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
+
+            $table->foreignId('project_id')->constrained()->cascadeOnDelete();
+
+            $table->string('task_name');
             $table->text('description')->nullable();
-            $table->integer('priority')->default(1); // 1: Low, 2: Medium, 3: High
-            $table->enum('status', ['pending', 'in_progress', 'completed'])->default('pending');
+
+            $table->unsignedTinyInteger('status')->default(0)->comment('0=pending,1=in_progress,2=done,3=blocked');
+
             $table->date('due_date')->nullable();
-            $table->integer('created_user_id');
+
+            $table->enum('priority', ['low', 'medium', 'high'])->default('low');
+
+            // Can be multiple, comma-separated (e.g. "backend,api,urgent")
+            $table->string('category')->nullable();
+
             $table->timestamps();
         });
     }

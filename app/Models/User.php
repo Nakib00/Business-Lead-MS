@@ -78,4 +78,18 @@ class User extends Authenticatable implements JWTSubject
             ],
         ];
     }
+
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class)
+            ->using(ProjectUser::class)
+            ->withTimestamps();
+    }
+
+    public function tasks()
+    {
+        return $this->belongsToMany(Task::class)
+            ->using(TaskUser::class)
+            ->withTimestamps();
+    }
 }

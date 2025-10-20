@@ -11,14 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('task_user_assigns', function (Blueprint $table) {
+       Schema::create('project_user', function (Blueprint $table) {
             $table->id();
-            $table->integer('task_id');
-            $table->integer('user_id');
-            $table->enum('status', ['pending', 'in_progress', 'completed'])->default('pending');
-            $table->string('feedback')->nullable();
-            $table->date('due_date')->nullable();
+            $table->foreignId('project_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
+
+            $table->unique(['project_id', 'user_id']);
         });
     }
 
@@ -27,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('task_user_assigns');
+        Schema::dropIfExists('project_users');
     }
 };

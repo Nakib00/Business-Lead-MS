@@ -10,21 +10,67 @@ class Task extends Model
     use HasFactory;
 
     protected $fillable = [
-        'title',
+        'project_id',
+        'task_name',
         'description',
-        'priority',
         'status',
         'due_date',
-        'created_user_id'
+        'priority',
+        'category',
     ];
 
-    public function creator()
+    protected $casts = [
+        'status'   => 'integer',
+        'due_date' => 'date',
+    ];
+
+    // Relationships
+    public function project()
     {
-        return $this->belongsTo(User::class, 'created_user_id');
+        return $this->belongsTo(Project::class);
     }
 
-    public function assignedUsers()
+    // Users assigned to this task (pivot)
+    public function users()
     {
-        return $this->hasMany(TaskUserAssign::class, 'task_id');
+        return $this->belongsToMany(User::class)
+            ->using(TaskUser::class)
+            ->withTimestamps();
+    }
+
+    // CSV helpers
+    public function getCategoryArrayAttribute(): array
+    {
+        if (!$this->category) return [];
+        return array_values(array_filter(array_map('trim', explode(',', $this->category))));
+    }
+
+    public function setCategoryArrayAttribute($value): void
+    {
+        if (is_array($value)) {
+            $this->attributes['category'] = implode(',', array_map('trim', $value));
+        }
+    }
+
+    // Useful scopes
+    public function scopePending($q)
+    {
+        return $q->where('status', 0);
+    }
+    public function scopeInProgress($q)
+    {
+        return $q->where('status', 1);
+    }
+    public function scopeDone($q)
+    {
+        return $q->where('status', 2);
+    }
+    public function scopeBlocked($q)
+    {
+        return $q->where('status', 3);
+    }
+    public function scopeHighPriority($q)
+    {
+        return $q->where('priority', 'high');
     }
 }
