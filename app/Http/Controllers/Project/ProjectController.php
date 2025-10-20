@@ -366,4 +366,79 @@ class ProjectController extends Controller
             return;
         }
     }
+
+    /**
+     * GET /projects
+     */
+    public function indexSummary(Request $request)
+    {
+        try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            $perPage = (int) ($request->query('per_page', 15));
+
+            // Eager-load users (only id, profile_image) and count tasks (total & completed)
+            $query = Project::query()
+                ->select(['id', 'project_code', 'project_name', 'client_name', 'status', 'progress', 'due_date'])
+                ->with([
+                    'users:id,profile_image' // we only need these columns for images
+                ])
+                ->withCount([
+                    'tasks as total_tasks',
+                    'tasks as completed_tasks' => function ($q) {
+                        $q->where('status', 2); // status=2 => completed
+                    },
+                ])
+                ->orderByDesc('id');
+
+            // Optional quick search filters
+            if ($s = $request->query('search')) {
+                $query->where(function ($q) use ($s) {
+                    $q->where('project_name', 'like', "%$s%")
+                        ->orWhere('client_name', 'like', "%$s%")
+                        ->orWhere('project_code', 'like', "%$s%");
+                });
+            }
+            if ($status = $request->query('status')) {
+                $query->where('status', (int)$status);
+            }
+            if ($dueBefore = $request->query('due_before')) {
+                $query->whereDate('due_date', '<=', $dueBefore);
+            }
+            if ($dueAfter = $request->query('due_after')) {
+                $query->whereDate('due_date', '>=', $dueAfter);
+            }
+
+            $paginator = $query->paginate($perPage);
+
+            // Transform rows to required shape
+            $data = $paginator->getCollection()->map(function (Project $project) {
+                return [
+                    'id'             => $project->id,
+                    'project_code'   => $project->project_code,
+                    'project_name'   => $project->project_name,
+                    'client_name'    => $project->client_name,
+                    'status'         => $project->status,
+                    'progress'       => $project->progress,
+                    'due_date'       => optional($project->due_date)->format('Y-m-d'),
+                    'assigned_user_images' => $project->users->map(function ($u) {
+                        // Build a URL if a relative path is stored; keep as-is if already a full URL
+                        if (!$u->profile_image) return null;
+                        return (Str::startsWith($u->profile_image, ['http://', 'https://']))
+                            ? $u->profile_image
+                            : url($u->profile_image);
+                    })->filter()->values()->all(),
+                    'total_tasks'    => (int) ($project->total_tasks ?? 0),
+                    'completed_tasks' => (int) ($project->completed_tasks ?? 0),
+                ];
+            })->values();
+
+            // Use your paginated response wrapper
+            return $this->paginatedResponse($data, $paginator, 'Projects fetched');
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to fetch projects', $e->getMessage());
+        }
+    }
 }
