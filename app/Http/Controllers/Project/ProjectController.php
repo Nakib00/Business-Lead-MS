@@ -352,9 +352,6 @@ class ProjectController extends Controller
     public function indexSummary(Request $request)
     {
         try {
-            if (!$request->user()) {
-                return $this->unauthorizedResponse('Login required'); // 401
-            }
 
             // Validate/normalize query params
             $request->validate([
