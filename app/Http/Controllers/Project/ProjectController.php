@@ -369,17 +369,26 @@ class ProjectController extends Controller
             ]);
 
             $limit = (int) $request->query('limit', 5);   // default 5
-            $page  = (int) $request->query('page', 1);    // default page 1
+            $page  = (int) $request->query('page', 1);    // default 1
 
             $query = Project::query()
-                ->select(['id', 'project_code', 'project_name', 'client_name', 'status', 'progress', 'due_date'])
+                ->select([
+                    'id',
+                    'project_code',
+                    'project_name',
+                    'client_name',
+                    'status',
+                    'progress',
+                    'due_date',
+                    'project_thumbnail', // <-- include so we can transform it
+                ])
                 ->with([
-                    'users:id,profile_image'
+                    'users:id,profile_image' // only what we need for avatars
                 ])
                 ->withCount([
                     'tasks as total_tasks',
                     'tasks as completed_tasks' => function ($q) {
-                        $q->where('status', 2);
+                        $q->where('status', 2); // completed
                     },
                 ])
                 ->orderByDesc('id'); // descending
@@ -408,28 +417,46 @@ class ProjectController extends Controller
                 $query->whereDate('due_date', '>=', $dueAfter);
             }
 
-            // Use custom page & limit
+            // Paginate with custom page/limit
             $paginator = $query->paginate($limit, ['*'], 'page', $page);
 
+            // Transform to required shape
             $data = $paginator->getCollection()->map(function (Project $project) {
+                // Build thumbnail URL from storage/app/public/projectThumbnails
+                $thumbUrl = null;
+                if (!empty($project->project_thumbnail)) {
+                    if (Str::startsWith($project->project_thumbnail, ['http://', 'https://'])) {
+                        $thumbUrl = $project->project_thumbnail; // already full URL
+                    } else {
+                        // ensure path begins with projectThumbnails/
+                        $relative = Str::startsWith($project->project_thumbnail, ['projectThumbnails/'])
+                            ? $project->project_thumbnail
+                            : 'projectThumbnails/' . ltrim($project->project_thumbnail, '/');
+
+                        // public URL => /storage/projectThumbnails/...
+                        $thumbUrl = Storage::disk('public')->url($relative);
+                    }
+                }
+
                 return [
-                    'id'               => $project->id,
-                    'project_thumbnail' => $project->project_thumbnail ? Storage::url($project->project_thumbnail) : null,
-                    'project_code'     => $project->project_code,
-                    'project_name'     => $project->project_name,
-                    'client_name'      => $project->client_name,
-                    'status'           => $project->status,
-                    'progress'         => $project->progress,
-                    'due_date'         => optional($project->due_date)->format('Y-m-d'),
+                    'id'                 => $project->id,
+                    'project_thumbnail'  => $thumbUrl,
+                    'project_code'       => $project->project_code,
+                    'project_name'       => $project->project_name,
+                    'client_name'        => $project->client_name,
+                    'status'             => $project->status,
+                    'progress'           => $project->progress,
+                    'due_date'           => optional($project->due_date)->format('Y-m-d'),
                     'assigned_user_images' => $project->users->map(function ($u) {
                         if (!$u->profile_image) return null;
+
                         // Full URL stays; relative path -> Storage::url()
                         return Str::startsWith($u->profile_image, ['http://', 'https://'])
                             ? $u->profile_image
                             : Storage::url($u->profile_image);
                     })->filter()->values()->all(),
-                    'total_tasks'      => (int) ($project->total_tasks ?? 0),
-                    'completed_tasks'  => (int) ($project->completed_tasks ?? 0),
+                    'total_tasks'        => (int) ($project->total_tasks ?? 0),
+                    'completed_tasks'    => (int) ($project->completed_tasks ?? 0),
                 ];
             })->values();
 

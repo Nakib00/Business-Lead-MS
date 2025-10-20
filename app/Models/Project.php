@@ -69,8 +69,20 @@ class Project extends Model
 
     public function getProjectThumbnailUrlAttribute(): ?string
     {
-        if (!$this->project_thumbnail) return null;
-        // public disk URL (e.g., /storage/projects/thumbnails/xxx.png)
-        return Storage::disk('public')->url($this->project_thumbnail);
+        $val = $this->project_thumbnail;
+        if (!$val) return null;
+
+        // If it's already a full URL, just return it
+        if (Str::startsWith($val, ['http://', 'https://'])) {
+            return $val;
+        }
+
+        // If it already includes the folder, use as-is; otherwise prepend
+        $relative = Str::startsWith($val, ['projectThumbnails/'])
+            ? $val
+            : 'projectThumbnails/' . ltrim($val, '/');
+
+        // Generate a public URL (=> /storage/projectThumbnails/...)
+        return Storage::disk('public')->url($relative);
     }
 }
