@@ -11,7 +11,7 @@ use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
-    //
+    use ApiResponseTrait;
     public function storeForProject(Request $request, Project $project)
     {
         try {
