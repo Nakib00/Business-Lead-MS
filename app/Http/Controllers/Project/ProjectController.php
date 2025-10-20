@@ -353,6 +353,15 @@ class ProjectController extends Controller
     public function indexSummary(Request $request)
     {
         try {
+            // Must be logged in
+            $user = Auth::user();
+            if (!$user) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            // Determine effective admin id
+            $effectiveAdminId = $user->reg_user_id ?: $user->id;
+
             // Validate/normalize query params
             $request->validate([
                 'limit'      => ['nullable', 'integer', 'min:1', 'max:100'],
@@ -384,11 +393,13 @@ class ProjectController extends Controller
                     'progress',
                     'due_date',
                     'priority',
-                    'project_thumbnail', // <- needed for accessor
+                    'project_thumbnail',
+                    'admin_id',
                 ])
+                // Only projects under this effective admin
+                ->where('admin_id', $effectiveAdminId)
                 ->with([
-                    // fetch minimal fields needed for summary; accessor uses profile_image
-                    'users:id,name,profile_image'
+                    'users:id,name,profile_image',
                 ])
                 ->withCount([
                     'tasks as total_tasks',
