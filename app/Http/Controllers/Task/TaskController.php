@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class TaskController extends Controller
 {
@@ -176,6 +178,153 @@ class TaskController extends Controller
             return $this->successResponse(null, 'Task deleted');
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to delete task', $e->getMessage());
+        }
+    }
+
+    public function indexSummary(Request $request)
+    {
+        try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            // Validate/normalize query params
+            $request->validate([
+                'limit'      => ['nullable', 'integer', 'min:1', 'max:100'],
+                'page'       => ['nullable', 'integer', 'min:1'],
+                'search'     => ['nullable', 'string', 'max:255'],
+                'project_id' => ['nullable', 'integer', 'exists:projects,id'],
+                'status'     => ['nullable', 'integer', 'between:0,3'],
+                'priority'   => ['nullable', Rule::in(['low', 'medium', 'high'])],
+                'due_date'   => ['nullable', 'date'],
+                'due_before' => ['nullable', 'date'],
+                'due_after'  => ['nullable', 'date'],
+            ]);
+
+            $limit = (int) $request->query('limit', 5); // default 5
+            $page  = (int) $request->query('page', 1);  // default 1
+
+            $query = Task::query()
+                ->select(['id', 'project_id', 'task_name', 'status', 'priority', 'category', 'due_date'])
+                ->with([
+                    // Only need id & profile_image for assigned user avatars
+                    'users:id,profile_image'
+                ])
+                ->orderByDesc('id'); // descending
+
+            // Filters
+            if ($pid = $request->query('project_id')) {
+                $query->where('project_id', (int) $pid);
+            }
+
+            if ($s = $request->query('search')) {
+                $query->where(function ($q) use ($s) {
+                    $q->where('task_name', 'like', "%$s%")
+                        ->orWhere('description', 'like', "%$s%")
+                        ->orWhere('category', 'like', "%$s%");
+                });
+            }
+
+            if (!is_null($request->query('status'))) {
+                $query->where('status', (int) $request->query('status'));
+            }
+
+            if ($priority = $request->query('priority')) {
+                $query->where('priority', $priority);
+            }
+
+            if ($dueExact = $request->query('due_date')) {
+                $query->whereDate('due_date', '=', $dueExact);
+            }
+
+            if ($dueBefore = $request->query('due_before')) {
+                $query->whereDate('due_date', '<=', $dueBefore);
+            }
+
+            if ($dueAfter = $request->query('due_after')) {
+                $query->whereDate('due_date', '>=', $dueAfter);
+            }
+
+            // Paginate with custom page/limit
+            $paginator = $query->paginate($limit, ['*'], 'page', $page);
+
+            // Transform response shape
+            $data = $paginator->getCollection()->map(function (Task $task) {
+                return [
+                    'id'           => $task->id,
+                    'project_id'   => $task->project_id,
+                    'task_name'    => $task->task_name,
+                    'status'       => $task->status,     // 0..3
+                    'priority'     => $task->priority,   // low|medium|high
+                    'category'     => $task->category,   // CSV
+                    'due_date'     => optional($task->due_date)->format('Y-m-d'),
+                    'assigned_user_images' => $task->users->map(function ($u) {
+                        if (!$u->profile_image) return null;
+                        // If already full URL, keep it; else generate via Storage::url()
+                        return Str::startsWith($u->profile_image, ['http://', 'https://'])
+                            ? $u->profile_image
+                            : Storage::url($u->profile_image);
+                    })->filter()->values()->all(),
+                ];
+            })->values();
+
+            return $this->paginatedResponse($data, $paginator, 'Tasks fetched');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->validationErrorResponse($e->validator->errors());
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to fetch tasks', $e->getMessage());
+        }
+    }
+
+    /**
+     * GET /tasks/{task}
+     * Returns one task with all fields + assigned users (name & profile_image).
+     */
+    public function show(Request $request, Task $task)
+    {
+        try {
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
+
+            // Eager-load users (id, name, profile_image) and (optionally) project
+            $task->loadMissing([
+                'users:id,name,profile_image',
+                'project:id,project_name' // optional, remove if not needed
+            ]);
+
+            $assignedUsers = $task->users->map(function ($u) {
+                return [
+                    'id'    => $u->id,
+                    'name'  => $u->name,
+                    'profile_image' => $u->profile_image
+                        ? (Str::startsWith($u->profile_image, ['http://', 'https://'])
+                            ? $u->profile_image
+                            : Storage::url($u->profile_image))
+                        : null,
+                ];
+            })->values()->all();
+
+            $data = [
+                'id'          => $task->id,
+                'project_id'  => $task->project_id,
+                'task_name'   => $task->task_name,
+                'description' => $task->description,
+                'status'      => $task->status,    // 0=pending,1=in_progress,2=done,3=blocked
+                'priority'    => $task->priority,  // low|medium|high
+                'category'    => $task->category,  // CSV as stored
+                'due_date'    => optional($task->due_date)->format('Y-m-d'),
+                'assigned_users' => $assignedUsers,
+
+                // Optional convenience:
+                'project' => $task->relationLoaded('project') ? $task->project : null,
+                'created_at' => optional($task->created_at)->toDateTimeString(),
+                'updated_at' => optional($task->updated_at)->toDateTimeString(),
+            ];
+
+            return $this->successResponse($data, 'Task fetched');
+        } catch (\Throwable $e) {
+            return $this->serverErrorResponse('Failed to fetch task', $e->getMessage());
         }
     }
 }
