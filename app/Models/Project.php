@@ -22,6 +22,7 @@ class Project extends Model
         'status',
         'progress',
         'project_thumbnail',
+        'admin_id'
     ];
 
     protected $casts = [

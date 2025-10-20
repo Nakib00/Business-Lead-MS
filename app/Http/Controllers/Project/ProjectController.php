@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\File;
 class ProjectController extends Controller
 {
     use ApiResponseTrait;
+
     public function store(Request $request)
     {
         try {
@@ -46,14 +47,16 @@ class ProjectController extends Controller
 
             $project = DB::transaction(function () use ($validated, $user, $userIds, $request) {
 
-                $thumbnailUrlForDB = null;
+                // pick admin_id: prefer reg_user_id if set, else current user's id
+                $adminId = $user->reg_user_id ?? $user->id;
 
+                $thumbnailFullUrl = null;
                 if ($request->hasFile('project_thumbnail')) {
                     $imagePath = $request->file('project_thumbnail')->store('projectThumbnails', 'public');
-                    $thumbnailUrlForDB = env('APP_URL') . '/storage/app/public/' . $imagePath;
+                    // Store FULL URL (more robust than concatenating /storage/app/public/)
+                    $thumbnailFullUrl = url(Storage::url($imagePath));
                 }
 
-                // Base payload
                 $payload = [
                     'project_code'        => 'PRJ-' . Str::upper(Str::random(6)),
                     'project_name'        => $validated['project_name'],
@@ -64,8 +67,10 @@ class ProjectController extends Controller
                     'budget'              => $validated['budget'] ?? null,
                     'due_date'            => $validated['due_date'] ?? null,
 
-                    // Save FULL URL directly in DB per your requirement:
-                    'project_thumbnail'   => $thumbnailUrlForDB,
+                    'admin_id'            => $adminId,         
+
+                    // Save FULL URL directly in DB if you want that behavior:
+                    'project_thumbnail'   => $thumbnailFullUrl,
 
                     'status'              => 0,
                     'progress'            => 0,
@@ -90,9 +95,6 @@ class ProjectController extends Controller
 
                 return $project->fresh(['users']);
             });
-
-            // You no longer need append('project_thumbnail_url') because we stored a full URL already.
-            // $project->append('project_thumbnail_url');
 
             return $this->successResponse($project, 'Project created', 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -430,7 +432,6 @@ class ProjectController extends Controller
                     'status'            => (int) $project->status,
                     'progress'          => (int) $project->progress,
                     'due_date'          => optional($project->due_date)->format('Y-m-d'),
-                    // removed 'project_thumbnail' and 'assigned_user_images'
                     'total_tasks'       => (int) ($project->total_tasks ?? 0),
                     'completed_tasks'   => (int) ($project->completed_tasks ?? 0),
                 ];
