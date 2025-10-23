@@ -23,13 +23,9 @@ class ProjectController extends Controller
     {
         try {
             $user = Auth::user();
-            if (!$user) return $this->unauthorizedResponse('Login required');
-
-            // Normalize user_ids input (accept single int or array)
-            $incomingUserIds = $request->input('user_ids');
-            $userIds = is_null($incomingUserIds)
-                ? []
-                : (is_array($incomingUserIds) ? $incomingUserIds : [$incomingUserIds]);
+            if (!$user) {
+                return $this->unauthorizedResponse('Login required');
+            }
 
             // Validate
             $validated = $request->validate([
@@ -41,19 +37,23 @@ class ProjectController extends Controller
                 'budget'              => ['nullable', 'numeric', 'min:0'],
                 'due_date'            => ['nullable', 'date'],
                 'project_thumbnail'   => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
-                'user_ids'            => ['nullable'],
+
+                // <-- key part for arrays
+                'user_ids'            => ['nullable', 'array'],
                 'user_ids.*'          => ['integer', 'exists:users,id'],
             ]);
 
-            $project = DB::transaction(function () use ($validated, $user, $userIds, $request) {
+            $project = DB::transaction(function () use ($validated, $user, $request) {
 
-                // pick admin_id: prefer reg_user_id if set, else current user's id
+                // prefer reg_user_id if present; fallback to current user id
                 $adminId = $user->reg_user_id ?? $user->id;
 
+                // Handle thumbnail (store on "public" disk and generate a public URL)
                 $thumbnailFullUrl = null;
                 if ($request->hasFile('project_thumbnail')) {
                     $imagePath = $request->file('project_thumbnail')->store('projectThumbnails', 'public');
-                    $thumbnailFullUrl = env('APP_URL') . '/storage/app/public/' . $imagePath;
+                    // Generates url like /storage/projectThumbnails/xxx.jpg (works with 'php artisan storage:link')
+                    $thumbnailFullUrl = Storage::url($imagePath);
                 }
 
                 $payload = [
@@ -68,7 +68,7 @@ class ProjectController extends Controller
 
                     'admin_id'            => $adminId,
 
-                    // Save FULL URL directly in DB if you want that behavior:
+                    // Save FULL URL/path (Storage::url)
                     'project_thumbnail'   => $thumbnailFullUrl,
 
                     'status'              => 0,
@@ -82,11 +82,14 @@ class ProjectController extends Controller
                 /** @var Project $project */
                 $project = Project::create($payload);
 
-                // Always include the creator in assignments
-                if (!in_array($user->id, $userIds ?? [], true)) {
+                // Grab array directly from validated data, ensure ints & unique
+                $userIds = $validated['user_ids'] ?? [];
+                $userIds = array_values(array_unique(array_map('intval', $userIds)));
+
+                // Always include the creator
+                if (!in_array($user->id, $userIds, true)) {
                     $userIds[] = $user->id;
                 }
-                $userIds = array_values(array_unique(array_map('intval', $userIds)));
 
                 if (!empty($userIds)) {
                     $project->users()->syncWithoutDetaching($userIds);
