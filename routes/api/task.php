@@ -14,10 +14,10 @@ Route::middleware('auth:api')->group(function () {
         Route::patch('/category/{task}', [TaskController::class, 'updateCategory']);
 
         // Full update of selected fields
-        Route::patch('/tasks/{task}',          [TaskController::class, 'updateDetails']);
+        Route::patch('/{task}',          [TaskController::class, 'updateDetails']);
 
-        Route::post('/tasks/users/{project}/{task}',        [TaskController::class, 'assignUsers']);
-        Route::delete('/tasks/users/{project}/{task}/{user}', [TaskController::class, 'removeUser']);
+        Route::post('/users/{project}/{task}',        [TaskController::class, 'assignUsers']);
+        Route::delete('/users/{project}/{task}/{user}', [TaskController::class, 'removeUser']);
 
         Route::delete('/{project}/{task}', [TaskController::class, 'destroy']);
     });
