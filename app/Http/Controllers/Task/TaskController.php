@@ -442,25 +442,49 @@ class TaskController extends Controller
     }
 
     /**
-     * PATCH /tasks/{task}
+     * PUT /tasks/{task}
      * Body: any of { "task_name", "description", "due_date" }
      */
-    public function updateDetails(Request $request, Task $task)
+    public function update(Request $request, Task $task)
     {
         try {
-            if (!$request->user()) return $this->unauthorizedResponse('Login required');
+            if (!$request->user()) {
+                return $this->unauthorizedResponse('Login required');
+            }
 
             $validated = $request->validate([
                 'task_name'   => ['sometimes', 'required', 'string', 'max:255'],
                 'description' => ['sometimes', 'nullable', 'string'],
                 'due_date'    => ['sometimes', 'nullable', 'date'],
+
+                'status'      => ['sometimes', 'required', 'integer', 'between:0,3'],
+                'priority'    => ['sometimes', 'required', Rule::in(['low', 'medium', 'high'])],
+                'category'    => ['sometimes', 'nullable'],
             ]);
 
-            if (empty($validated)) {
+            $dataToUpdate = $validated;
+
+            // Normalize category (same logic you used in updateCategory)
+            if ($request->has('category')) {
+                $cat = $request->input('category');
+
+                if (is_array($cat)) {
+                    $cat = implode(',', array_map(fn($v) => trim((string) $v), $cat));
+                } else {
+                    $cat = collect(explode(',', (string) $cat))
+                        ->map(fn($v) => trim($v))
+                        ->filter()
+                        ->implode(',');
+                }
+
+                $dataToUpdate['category'] = $cat ?: null;
+            }
+
+            if (empty($dataToUpdate)) {
                 return $this->successResponse($task->fresh(), 'No changes');
             }
 
-            $task->update($validated);
+            $task->update($dataToUpdate);
 
             return $this->successResponse($task->fresh(), 'Task updated');
         } catch (\Illuminate\Validation\ValidationException $e) {

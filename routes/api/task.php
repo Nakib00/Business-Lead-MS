@@ -14,7 +14,7 @@ Route::middleware('auth:api')->group(function () {
         Route::patch('/category/{task}', [TaskController::class, 'updateCategory']);
 
         // Full update of selected fields
-        Route::patch('/{task}',          [TaskController::class, 'updateDetails']);
+        Route::put('/{task}',          [TaskController::class, 'updateDetails']);
 
         Route::post('/users/{project}/{task}',        [TaskController::class, 'assignUsers']);
         Route::delete('/users/{project}/{task}/{user}', [TaskController::class, 'removeUser']);
