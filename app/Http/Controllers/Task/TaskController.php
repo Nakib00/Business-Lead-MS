@@ -445,7 +445,7 @@ class TaskController extends Controller
      * PUT /tasks/{task}
      * Body: any of { "task_name", "description", "due_date" }
      */
-    public function update(Request $request, Task $task)
+    public function updateDetails(Request $request, Task $task)
     {
         try {
             if (!$request->user()) {
