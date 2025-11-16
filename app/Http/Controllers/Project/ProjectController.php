@@ -52,7 +52,6 @@ class ProjectController extends Controller
                 $thumbnailFullUrl = null;
                 if ($request->hasFile('project_thumbnail')) {
                     $imagePath = $request->file('project_thumbnail')->store('projectThumbnails', 'public');
-                    // Generates url like /storage/projectThumbnails/xxx.jpg (works with 'php artisan storage:link')
                     $thumbnailFullUrl = Storage::url($imagePath);
                 }
 
@@ -235,7 +234,65 @@ class ProjectController extends Controller
         }
     }
 
+    /**
+     * Update project thumbnail image
+     */
+    public function updateProjectThumbnail(Request $request, $id)
+    {
+        try {
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'project_thumbnail' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048'
+            ]);
 
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Find the project
+            $project = Project::find($id);
+
+            if (!$project) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Project not found'
+                ], 404);
+            }
+
+            // Delete old thumbnail if exists
+            $this->deleteProjectThumbnailFile($project->project_thumbnail);
+
+            // Upload new thumbnail
+            $thumbnailFullUrl = null;
+            if ($request->hasFile('project_thumbnail')) {
+                $imagePath = $request->file('project_thumbnail')->store('projectThumbnails', 'public');
+                $thumbnailFullUrl = Storage::url($imagePath);
+            }
+
+            // Update project thumbnail
+            $project->project_thumbnail = $thumbnailFullUrl;
+            $project->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Project thumbnail updated successfully',
+                'data' => [
+                    'project_id' => $project->id,
+                    'project_thumbnail' => $project->project_thumbnail
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update project thumbnail',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
 
     public function assignUsers(Request $request, Project $project)
@@ -523,7 +580,7 @@ class ProjectController extends Controller
                 return [
                     'id'                => $u->id,
                     'name'              => $u->name,
-                    'profile_image_url' => $u->profile_image_url, // <-- accessor from User model
+                    'profile_image_url' => $u->profile_image_url,
                 ];
             })->values()->all();
 
@@ -533,7 +590,7 @@ class ProjectController extends Controller
                     return [
                         'id'                => $u->id,
                         'name'              => $u->name,
-                        'profile_image_url' => $u->profile_image_url, // <-- accessor
+                        'profile_image_url' => $u->profile_image_url,
                     ];
                 })->values()->all();
 

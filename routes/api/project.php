@@ -9,6 +9,7 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/{project}', [ProjectController::class, 'showDetails']);
         Route::post('/', [ProjectController::class, 'store']);
         Route::put('/{project}', [ProjectController::class, 'updateDetails']);
+        Route::post('/update-thumbnail/{project}', [ProjectController::class, 'updateProjectThumbnail']);
 
         Route::patch('/priority/{project}', [ProjectController::class, 'updatePriority']);
         Route::patch('/status/{project}',   [ProjectController::class, 'updateStatus']);
