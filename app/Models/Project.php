@@ -26,13 +26,6 @@ class Project extends Model
         'admin_id'
     ];
 
-    protected $casts = [
-        'budget'   => 'decimal:2',
-        'due_date' => 'date',
-        'status'   => 'integer',
-        'progress' => 'integer',
-    ];
-
     protected static function booted()
     {
         static::creating(function (Project $project) {
@@ -75,7 +68,7 @@ class Project extends Model
     {
         $val = $this->attributes['project_thumbnail'] ?? null;
         if (!$val) {
-            return asset('images/placeholders/project.png'); // optional
+            return asset('images/placeholders/project.png');
         }
 
 
@@ -83,9 +76,9 @@ class Project extends Model
             return $val;
         }
 
-   
+
         if (Str::startsWith($val, ['/storage/'])) {
-            return asset(ltrim($val, '/')); // -> http(s)://domain/storage/...
+            return asset(ltrim($val, '/'));
         }
 
         if (Str::contains($val, 'storage/app/public/')) {
