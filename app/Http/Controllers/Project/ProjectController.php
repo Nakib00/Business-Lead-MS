@@ -187,64 +187,54 @@ class ProjectController extends Controller
                 return $this->unauthorizedResponse('Login required');
             }
 
-            // Validate inputs (all optional; only provided fields are validated)
-            $validated = $request->validate([
-                'project_name'        => ['sometimes', 'required', 'string', 'max:255'],
-                'client_name'         => ['sometimes', 'required', 'string', 'max:255'],
+            // Validate inputs
+            $data = $request->validate([
+                'project_name'        => ['sometimes', 'string', 'max:255'],
+                'client_name'         => ['sometimes', 'string', 'max:255'],
                 'project_description' => ['sometimes', 'nullable', 'string'],
-                'category'            => ['sometimes', 'nullable', 'string', 'max:255'], // CSV "web,crm"
+                'category'            => ['sometimes', 'nullable', 'string', 'max:255'],
                 'due_date'            => ['sometimes', 'nullable', 'date'],
                 'project_thumbnail'   => ['sometimes', 'nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
-                'priority'            => ['sometimes', 'required', Rule::in(['low', 'medium', 'high'])],
-                'status'              => ['sometimes', 'required', 'integer', 'between:0,3'],
-                'progress'            => ['sometimes', 'required', 'integer', 'between:0,100'],
+                'priority'            => ['sometimes', Rule::in(['low', 'medium', 'high'])],
+                'status'              => ['sometimes', 'integer', 'between:0,3'],
+                'progress'            => ['sometimes', 'integer', 'between:0,100'],
             ]);
 
-            // Collect simple field updates
-            $updates = [];
-
-            foreach (
-                [
-                    'project_name',
-                    'client_name',
-                    'project_description',
-                    'category',
-                    'due_date',
-                    'priority',
-                    'status',
-                    'progress',
-                ] as $field
-            ) {
-                if (array_key_exists($field, $validated)) {
-                    $updates[$field] = $validated[$field];
-                }
-            }
-
-            // Cast numeric fields to int like in your separate methods
-            if (array_key_exists('status', $updates)) {
-                $updates['status'] = (int) $updates['status'];
-            }
-            if (array_key_exists('progress', $updates)) {
-                $updates['progress'] = (int) $updates['progress'];
-            }
-
-            // Handle thumbnail (move() + relative path)
+            // Handle thumbnail upload if present
             if ($request->hasFile('project_thumbnail')) {
                 $image = $request->file('project_thumbnail');
                 $imageName = time() . '_' . $image->getClientOriginalName();
                 $image->move(public_path('projectThumbnails'), $imageName);
 
-                // store relative path on the model
-                $updates['project_thumbnail'] = 'projectThumbnails/' . $imageName;
+                // store relative path
+                $data['project_thumbnail'] = 'projectThumbnails/' . $imageName;
             }
 
-            if (empty($updates)) {
-                return $this->successResponse($project->fresh(), 'No changes');
+            // Cast numeric fields
+            if (array_key_exists('status', $data)) {
+                $data['status'] = (int) $data['status'];
+            }
+            if (array_key_exists('progress', $data)) {
+                $data['progress'] = (int) $data['progress'];
             }
 
-            $project->update($updates);
+            // Fill the model with validated data
+            $project->fill($data);
 
-            // If you want to also return a public URL alongside the stored relative path:
+            // If nothing actually changed on the model, return "No changes"
+            if (!$project->isDirty()) {
+                $fresh = $project->fresh();
+                $fresh->setAttribute(
+                    'project_thumbnail_url',
+                    $fresh->project_thumbnail ? url($fresh->project_thumbnail) : null
+                );
+
+                return $this->successResponse($fresh, 'No changes');
+            }
+
+            // Save changes
+            $project->save();
+
             $fresh = $project->fresh();
             $fresh->setAttribute(
                 'project_thumbnail_url',
@@ -258,6 +248,7 @@ class ProjectController extends Controller
             return $this->serverErrorResponse('Failed to update project', $e->getMessage());
         }
     }
+
 
 
 
@@ -420,9 +411,9 @@ class ProjectController extends Controller
                     'project_code',
                     'project_name',
                     'client_name',
-                    'project_description', 
-                    'category',            
-                    'budget',             
+                    'project_description',
+                    'category',
+                    'budget',
                     'status',
                     'progress',
                     'due_date',
