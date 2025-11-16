@@ -183,65 +183,51 @@ class ProjectController extends Controller
     public function updateDetails(Request $request, Project $project)
     {
         try {
+            // Make sure user is logged in (keep your existing check)
             if (!$request->user()) {
                 return $this->unauthorizedResponse('Login required');
             }
 
-            // Validate inputs
-            $data = $request->validate([
+            // Only take the fields we care about (works with form-data, urlencoded, query, etc.)
+            $input = $request->only([
+                'project_name',
+                'client_name',
+                'project_description',
+                'category',
+                'priority',
+                'budget',
+                'due_date',
+                'status',
+                'progress',
+            ]);
+
+            // Validate only provided fields (all are optional / "sometimes")
+            $validated = validator($input, [
                 'project_name'        => ['sometimes', 'string', 'max:255'],
                 'client_name'         => ['sometimes', 'string', 'max:255'],
                 'project_description' => ['sometimes', 'nullable', 'string'],
                 'category'            => ['sometimes', 'nullable', 'string', 'max:255'],
-                'due_date'            => ['sometimes', 'nullable', 'date'],
-                'project_thumbnail'   => ['sometimes', 'nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
                 'priority'            => ['sometimes', Rule::in(['low', 'medium', 'high'])],
+                'budget'              => ['sometimes', 'numeric', 'min:0'],
+                'due_date'            => ['sometimes', 'nullable', 'date'],
                 'status'              => ['sometimes', 'integer', 'between:0,3'],
                 'progress'            => ['sometimes', 'integer', 'between:0,100'],
-            ]);
+            ])->validate();
 
-            // Handle thumbnail upload if present
-            if ($request->hasFile('project_thumbnail')) {
-                $image = $request->file('project_thumbnail');
-                $imageName = time() . '_' . $image->getClientOriginalName();
-                $image->move(public_path('projectThumbnails'), $imageName);
+            // Fill model with new values
+            $project->fill($validated);
 
-                // store relative path
-                $data['project_thumbnail'] = 'projectThumbnails/' . $imageName;
-            }
-
-            // Cast numeric fields
-            if (array_key_exists('status', $data)) {
-                $data['status'] = (int) $data['status'];
-            }
-            if (array_key_exists('progress', $data)) {
-                $data['progress'] = (int) $data['progress'];
-            }
-
-            // Fill the model with validated data
-            $project->fill($data);
-
-            // If nothing actually changed on the model, return "No changes"
+            // If nothing actually changed, return "No changes"
             if (!$project->isDirty()) {
-                $fresh = $project->fresh();
-                $fresh->setAttribute(
-                    'project_thumbnail_url',
-                    $fresh->project_thumbnail ? url($fresh->project_thumbnail) : null
-                );
-
-                return $this->successResponse($fresh, 'No changes');
+                // Accessor in model will automatically append project_thumbnail_url
+                return $this->successResponse($project->fresh(), 'No changes');
             }
 
             // Save changes
             $project->save();
 
-            $fresh = $project->fresh();
-            $fresh->setAttribute(
-                'project_thumbnail_url',
-                $fresh->project_thumbnail ? url($fresh->project_thumbnail) : null
-            );
-
-            return $this->successResponse($fresh, 'Project updated');
+            // fresh() to get updated values + appended attributes
+            return $this->successResponse($project->fresh(), 'Project updated');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator->errors());
         } catch (\Throwable $e) {
