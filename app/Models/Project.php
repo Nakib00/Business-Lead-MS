@@ -25,7 +25,10 @@ class Project extends Model
         'project_thumbnail',
         'admin_id'
     ];
-    
+    protected $casts = [
+        'due_date' => 'date',
+    ];
+
 
     protected static function booted()
     {

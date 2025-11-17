@@ -553,8 +553,8 @@ class ProjectController extends Controller
             $effectiveAdminId = $user->reg_user_id ?: $user->id;
 
             if ((int)$project->admin_id !== (int)$effectiveAdminId) {
-                
-                return $this->notFoundResponse('Project not found'); 
+
+                return $this->notFoundResponse('Project not found');
             }
 
             $project->loadMissing([
@@ -580,7 +580,6 @@ class ProjectController extends Controller
                 ];
             })->values()->all();
 
-            // Map tasks and each task's assigned users (use accessor for URL)
             $tasks = $project->tasks->map(function ($t) {
                 $taskUsers = $t->users->map(function ($u) {
                     return [
@@ -595,8 +594,8 @@ class ProjectController extends Controller
                     'task_name'       => $t->task_name,
                     'description'     => $t->description,
                     'status'          => (int) $t->status,
-                    'priority'        => $t->priority,       
-                    'category'        => $t->category,      
+                    'priority'        => $t->priority,
+                    'category'        => $t->category,
                     'due_date'        => $t->due_date,
                     'assigned_users'  => $taskUsers,
                 ];
@@ -612,7 +611,7 @@ class ProjectController extends Controller
                 'category'             => $project->category,
                 'priority'             => $project->priority,
                 'budget'               => $project->budget,
-                'due_date'             => optional($project->due_date)->format('Y-m-d'),
+                'due_date' => $project->due_date?->format('Y-m-d'),
                 'status'               => (int) $project->status,
                 'progress'             => (int) $project->progress,
                 'admin_id'             => (int) $project->admin_id,
