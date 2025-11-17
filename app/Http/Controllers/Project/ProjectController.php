@@ -516,7 +516,7 @@ class ProjectController extends Controller
                     'budget'                  => $project->budget,
                     'status'                  => (int) $project->status,
                     'progress'                => (int) $project->progress,
-                    'due_date'                => $project->due_date->format('Y-m-d'),
+                    'due_date'                => $project->due_date,
                     'priority'                => $project->priority,
                     'project_thumbnail_url'   => $project->project_thumbnail_url,
                     'total_tasks'             => (int) ($project->total_tasks ?? 0),
@@ -594,10 +594,10 @@ class ProjectController extends Controller
                     'id'              => $t->id,
                     'task_name'       => $t->task_name,
                     'description'     => $t->description,
-                    'status'          => (int) $t->status,    
+                    'status'          => (int) $t->status,
                     'priority'        => $t->priority,       
                     'category'        => $t->category,      
-                    'due_date'        => $t->due_date->format('Y-m-d'),
+                    'due_date'        => $t->due_date,
                     'assigned_users'  => $taskUsers,
                 ];
             })->values()->all();
