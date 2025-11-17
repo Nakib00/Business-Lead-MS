@@ -516,7 +516,7 @@ class ProjectController extends Controller
                     'budget'                  => $project->budget,
                     'status'                  => (int) $project->status,
                     'progress'                => (int) $project->progress,
-                    'due_date'                => $project->due_date,
+                    'due_date' => $project->due_date?->format('Y-m-d'),
                     'priority'                => $project->priority,
                     'project_thumbnail_url'   => $project->project_thumbnail_url,
                     'total_tasks'             => (int) ($project->total_tasks ?? 0),
