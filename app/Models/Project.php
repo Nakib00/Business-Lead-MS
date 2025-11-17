@@ -25,6 +25,7 @@ class Project extends Model
         'project_thumbnail',
         'admin_id'
     ];
+    
 
     protected static function booted()
     {

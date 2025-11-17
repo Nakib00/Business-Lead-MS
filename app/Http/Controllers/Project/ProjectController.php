@@ -514,10 +514,9 @@ class ProjectController extends Controller
                     'project_description'     => $project->project_description,
                     'category'                => $project->category,
                     'budget'                  => $project->budget,
-
                     'status'                  => (int) $project->status,
                     'progress'                => (int) $project->progress,
-                    'due_date'                => optional($project->due_date)->format('Y-m-d'),
+                    'due_date'                => $project->due_date->format('Y-m-d'),
                     'priority'                => $project->priority,
                     'project_thumbnail_url'   => $project->project_thumbnail_url,
                     'total_tasks'             => (int) ($project->total_tasks ?? 0),
@@ -551,17 +550,13 @@ class ProjectController extends Controller
                 return $this->unauthorizedResponse('Login required');
             }
 
-            // Determine effective admin id (same logic as indexSummary)
             $effectiveAdminId = $user->reg_user_id ?: $user->id;
 
-            // Enforce access: only show if project's admin_id matches effective admin
             if ((int)$project->admin_id !== (int)$effectiveAdminId) {
-                // Choose one of these based on your API style:
-                // return $this->forbiddenResponse('You are not allowed to view this project');
-                return $this->notFoundResponse('Project not found'); // hides existence
+                
+                return $this->notFoundResponse('Project not found'); 
             }
 
-            // Eager-load relationships (minimal fields) + task counts
             $project->loadMissing([
                 'users:id,name,profile_image',
                 'tasks' => function ($q) {
@@ -599,10 +594,10 @@ class ProjectController extends Controller
                     'id'              => $t->id,
                     'task_name'       => $t->task_name,
                     'description'     => $t->description,
-                    'status'          => (int) $t->status,     // 0=pending,1=in_progress,2=done,3=blocked
-                    'priority'        => $t->priority,         // low|medium|high
-                    'category'        => $t->category,         // CSV as stored
-                    'due_date'        => optional($t->due_date)->format('Y-m-d'),
+                    'status'          => (int) $t->status,    
+                    'priority'        => $t->priority,       
+                    'category'        => $t->category,      
+                    'due_date'        => $t->due_date->format('Y-m-d'),
                     'assigned_users'  => $taskUsers,
                 ];
             })->values()->all();
