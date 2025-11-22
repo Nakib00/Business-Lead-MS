@@ -53,10 +53,8 @@ class ProjectController extends Controller
                 $thumbnailFullUrl = null;
                 if ($request->hasFile('project_thumbnail')) {
                     $imagePath = $request->file('project_thumbnail')->store('projectThumbnails', 'public');
-                    // Save ONLY relative path in DB
                     $thumbnailFullUrl = $imagePath;
                 }
-
 
                 $payload = [
                     'project_code'        => 'PRJ-' . Str::upper(Str::random(6)),
