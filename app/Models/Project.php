@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
-
 class Project extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'project_code',
         'project_name',
@@ -23,12 +23,14 @@ class Project extends Model
         'status',
         'progress',
         'project_thumbnail',
-        'admin_id'
+        'admin_id',
     ];
+
     protected $casts = [
         'due_date' => 'date',
     ];
 
+    protected $appends = ['project_thumbnail_url'];
 
     protected static function booted()
     {
@@ -39,7 +41,12 @@ class Project extends Model
         });
     }
 
-    // Relationships
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
+
     public function tasks()
     {
         return $this->hasMany(Task::class);
@@ -52,11 +59,21 @@ class Project extends Model
             ->withTimestamps();
     }
 
-    // Helpers for CSV category field
+    /*
+    |--------------------------------------------------------------------------
+    | Category helper (CSV field)
+    |--------------------------------------------------------------------------
+    */
+
     public function getCategoryArrayAttribute(): array
     {
         if (!$this->category) return [];
-        return array_values(array_filter(array_map('trim', explode(',', $this->category))));
+
+        return array_values(
+            array_filter(
+                array_map('trim', explode(',', $this->category))
+            )
+        );
     }
 
     public function setCategoryArrayAttribute($value): void
@@ -66,30 +83,37 @@ class Project extends Model
         }
     }
 
-    protected $appends = ['project_thumbnail_url'];
+    /*
+    |--------------------------------------------------------------------------
+    | Accessor: project_thumbnail_url
+    |--------------------------------------------------------------------------
+    |
+    | DB value (project_thumbnail) is stored like:
+    |   projectThumbnails/abc123.jpg
+    |
+    | You want to expose:
+    |   https://hubbackend.desklago.com/storage/app/public/projectThumbnails/abc123.jpg
+    |--------------------------------------------------------------------------
+    */
 
     public function getProjectThumbnailUrlAttribute()
     {
         $val = $this->attributes['project_thumbnail'] ?? null;
+
         if (!$val) {
             return asset('images/placeholders/project.png');
         }
-
 
         if (Str::startsWith($val, ['http://', 'https://', '//'])) {
             return $val;
         }
 
-
-        if (Str::startsWith($val, ['/storage/'])) {
-            return asset(ltrim($val, '/'));
-        }
-
         if (Str::contains($val, 'storage/app/public/')) {
             $rel = Str::after($val, 'storage/app/public/');
-            return asset('storage/' . ltrim($rel, '/'));
+            $base = rtrim(config('app.url'), '/') . '/storage/app/public/';
+            return $base . ltrim($rel, '/');
         }
 
-        return Storage::disk('public')->url($val);
+        return $base . ltrim($val, '/');
     }
 }
