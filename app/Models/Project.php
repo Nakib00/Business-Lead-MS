@@ -71,25 +71,23 @@ class Project extends Model
     public function getProjectThumbnailUrlAttribute()
     {
         $val = $this->attributes['project_thumbnail'] ?? null;
+
         if (!$val) {
             return asset('images/placeholders/project.png');
         }
 
-
+        // If it's already a full URL, just return it
         if (Str::startsWith($val, ['http://', 'https://', '//'])) {
             return $val;
         }
 
-
-        if (Str::startsWith($val, ['/storage/'])) {
+        // If value already includes storage/app/public, just wrap with asset()
+        if (Str::startsWith($val, ['/storage/app/public/', 'storage/app/public/'])) {
             return asset(ltrim($val, '/'));
         }
 
-        if (Str::contains($val, 'storage/app/public/')) {
-            $rel = Str::after($val, 'storage/app/public/');
-            return asset('storage/' . ltrim($rel, '/'));
-        }
-
-        return Storage::disk('public')->url($val);
+        // For anything else (like "projectThumbnails/xxx.jpg"),
+        // build the URL with /storage/app/public/ in it
+        return asset('storage/app/public/' . ltrim($val, '/'));
     }
 }
