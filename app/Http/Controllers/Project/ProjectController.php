@@ -183,14 +183,25 @@ class ProjectController extends Controller
     public function updateDetails(Request $request, Project $project)
     {
         try {
+            // Make sure user is logged in (keep your existing check)
             if (!$request->user()) {
                 return $this->unauthorizedResponse('Login required');
             }
 
-            // Use all input so file validation works
-            $input = $request->all();
+            // Only take the fields we care about (works with form-data, urlencoded, query, etc.)
+            $input = $request->only([
+                'project_name',
+                'client_name',
+                'project_description',
+                'category',
+                'priority',
+                'budget',
+                'due_date',
+                'status',
+                'progress',
+            ]);
 
-            // Validate only provided fields (all "sometimes")
+            // Validate only provided fields (all are optional / "sometimes")
             $validated = validator($input, [
                 'project_name'        => ['sometimes', 'string', 'max:255'],
                 'client_name'         => ['sometimes', 'string', 'max:255'],
@@ -201,33 +212,21 @@ class ProjectController extends Controller
                 'due_date'            => ['sometimes', 'nullable', 'date'],
                 'status'              => ['sometimes', 'integer', 'between:0,3'],
                 'progress'            => ['sometimes', 'integer', 'between:0,100'],
-                'project_thumbnail'   => ['sometimes', 'nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             ])->validate();
 
-            // Fill normal fields (excluding file)
-            $project->fill(collect($validated)->except('project_thumbnail')->toArray());
+            // Fill model with new values
+            $project->fill($validated);
 
-            // Handle thumbnail upload same as store()
-            if ($request->hasFile('project_thumbnail')) {
-                // Delete old file if exists
-                $this->deleteProjectThumbnailFile($project->project_thumbnail);
-
-                // Store new file on "public" disk
-                $imagePath = $request->file('project_thumbnail')->store('projectThumbnails', 'public');
-
-                // Save ONLY the path (same as store)
-                $project->project_thumbnail = $imagePath;
-            }
-
-            // If nothing changed, return "No changes"
+            // If nothing actually changed, return "No changes"
             if (!$project->isDirty()) {
+                // Accessor in model will automatically append project_thumbnail_url
                 return $this->successResponse($project->fresh(), 'No changes');
             }
 
             // Save changes
             $project->save();
 
-            // Return updated model
+            // fresh() to get updated values + appended attributes
             return $this->successResponse($project->fresh(), 'Project updated');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator->errors());
