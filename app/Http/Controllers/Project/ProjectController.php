@@ -241,16 +241,22 @@ class ProjectController extends Controller
     public function updateProjectThumbnail(Request $request, $id)
     {
         try {
-            // Validate the request
+            // Use the SAME validation rules as in store()
             $validator = Validator::make($request->all(), [
-                'project_thumbnail' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048'
+                'project_thumbnail' => [
+                    'required',
+                    'file',
+                    'image',
+                    'mimes:jpg,jpeg,png,webp',
+                    'max:5120', 
+                ],
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
-                    'errors' => $validator->errors()
+                    'errors'  => $validator->errors(),
                 ], 422);
             }
 
@@ -260,40 +266,44 @@ class ProjectController extends Controller
             if (!$project) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Project not found'
+                    'message' => 'Project not found',
                 ], 404);
             }
 
             // Delete old thumbnail if exists
             $this->deleteProjectThumbnailFile($project->project_thumbnail);
 
-            // Upload new thumbnail
-            $thumbnailFullUrl = null;
+            // Upload new thumbnail - SAME AS store()
+            $thumbnailPath = null;
             if ($request->hasFile('project_thumbnail')) {
-                $imagePath = $request->file('project_thumbnail')->store('projectThumbnails', 'public');
-                $thumbnailFullUrl = Storage::url($imagePath);
+                $thumbnailPath = $request->file('project_thumbnail')
+                    ->store('projectThumbnails', 'public');
             }
 
-            // Update project thumbnail
-            $project->project_thumbnail = $thumbnailFullUrl;
+            // Save just the stored path (same as store())
+            $project->project_thumbnail = $thumbnailPath;
             $project->save();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Project thumbnail updated successfully',
-                'data' => [
-                    'project_id' => $project->id,
-                    'project_thumbnail' => $project->project_thumbnail
-                ]
+                'data'    => [
+                    'project_id'         => $project->id,
+                    'project_thumbnail'  => $project->project_thumbnail,              
+                    'project_thumbnail_url' => $project->project_thumbnail
+                        ? Storage::url($project->project_thumbnail)               
+                        : null,
+                ],
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update project thumbnail',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
+
 
 
     public function assignUsers(Request $request, Project $project)
