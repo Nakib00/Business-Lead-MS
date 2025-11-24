@@ -241,14 +241,13 @@ class ProjectController extends Controller
     public function updateProjectThumbnail(Request $request, $id)
     {
         try {
-            // Use the SAME validation rules as in store()
             $validator = Validator::make($request->all(), [
                 'project_thumbnail' => [
                     'required',
                     'file',
                     'image',
                     'mimes:jpg,jpeg,png,webp',
-                    'max:5120', 
+                    'max:5120',
                 ],
             ]);
 
@@ -260,7 +259,6 @@ class ProjectController extends Controller
                 ], 422);
             }
 
-            // Find the project
             $project = Project::find($id);
 
             if (!$project) {
@@ -273,26 +271,25 @@ class ProjectController extends Controller
             // Delete old thumbnail if exists
             $this->deleteProjectThumbnailFile($project->project_thumbnail);
 
-            // Upload new thumbnail - SAME AS store()
+            // Upload new thumbnail
             $thumbnailPath = null;
             if ($request->hasFile('project_thumbnail')) {
                 $thumbnailPath = $request->file('project_thumbnail')
                     ->store('projectThumbnails', 'public');
             }
 
-            // Save just the stored path (same as store())
             $project->project_thumbnail = $thumbnailPath;
             $project->save();
+
+            // Reload to be safe (optional but nice)
+            $project->refresh();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Project thumbnail updated successfully',
                 'data'    => [
-                    'project_id'         => $project->id,
-                    'project_thumbnail'  => $project->project_thumbnail,              
-                    'project_thumbnail_url' => $project->project_thumbnail
-                        ? Storage::url($project->project_thumbnail)               
-                        : null,
+                    'project_id'            => $project->id,
+                    'project_thumbnail_url' => $project->project_thumbnail_url,
                 ],
             ], 200);
         } catch (\Exception $e) {
@@ -303,6 +300,7 @@ class ProjectController extends Controller
             ], 500);
         }
     }
+
 
 
 
