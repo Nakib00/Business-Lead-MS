@@ -285,22 +285,59 @@ class AuthController extends Controller
                 return $this->errorResponse('Unauthorized. User not authenticated.', 401);
             }
 
+            // Load related models
+            $user->load([
+                'emergencyContact',
+                'securitySetting',
+                'preference',
+                'display'
+            ]);
+
             $data = [
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'address' => $user->address,
-                'profile_image' => $user->profile_image ? Storage::url($user->profile_image) : null,
-                'type' => $user->type,
-                'reg_user_id' => $user->reg_user_id,
-                'is_subscribe' => $user->is_subscribe,
+                'id'            => $user->id,
+                'name'          => $user->name,
+                'email'         => $user->email,
+                'phone'         => $user->phone,
+                'address'       => $user->address,
+                'profile_image' => $user->profile_image
+                    ? Storage::url($user->profile_image)
+                    : null,
+                'type'          => $user->type,
+                'reg_user_id'   => $user->reg_user_id,
+                'is_subscribe'  => $user->is_subscribe,
+
+                'emergency_contact' => [
+                    'name'         => $user->emergencyContact->name ?? null,
+                    'relationship' => $user->emergencyContact->relationship ?? null,
+                    'phone'        => $user->emergencyContact->phone ?? null,
+                ],
+
+                'security_setting' => [
+                    'two_factor_auth' => $user->securitySetting->two_factor_auth ?? null,
+                ],
+
+                'preference' => [
+                    'email_notifications' => $user->preference->email_notifications ?? null,
+                    'sms_notifications'   => $user->preference->sms_notifications ?? null,
+                    'push_notifications'  => $user->preference->push_notifications ?? null,
+                ],
+
+                'display' => [
+                    'language'          => $user->display->language ?? null,
+                    'sms_notifications' => $user->display->sms_notifications ?? null,
+                    'theme'             => $user->display->theme ?? null,
+                ],
             ];
 
             return $this->successResponse($data, 'User profile retrieved successfully', 200);
         } catch (Exception $e) {
-            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
+            return $this->errorResponse(
+                'Something went wrong: ' . $e->getMessage(),
+                500
+            );
         }
     }
+
 
     // update user profile
     public function updateProfile(Request $request, $userId)
