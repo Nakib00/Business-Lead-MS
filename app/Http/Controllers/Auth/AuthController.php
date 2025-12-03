@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Auth;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Exception;
 use App\Traits\ApiResponseTrait;
+use App\Models\UserEmergencyContact;
+use App\Models\SecuritySetting;
+use App\Models\Prefernce; 
+use App\Models\Display;
 
 class AuthController extends Controller
 {
@@ -355,31 +359,130 @@ class AuthController extends Controller
                 return $this->errorResponse('User not found.', 404);
             }
 
-            // Validate request
+            // Validate request (user fields required as before; others optional)
             $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'email' => 'required|email|unique:users,email,' . $user->id,
-                'phone' => 'nullable|string|max:20',
+                'name'    => 'required|string|max:255',
+                'email'   => 'required|email|unique:users,email,' . $user->id,
+                'phone'   => 'nullable|string|max:20',
                 'address' => 'nullable|string|max:255',
-                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+
+                // Emergency contact (optional)
+                'emergency_contact.name'         => 'nullable|string|max:255',
+                'emergency_contact.relationship' => 'nullable|string|max:255',
+                'emergency_contact.phone'        => 'nullable|string|max:20',
+
+                // Security setting (optional)
+                'security_setting.two_factor_auth' => 'nullable|boolean',
+
+                // Preference (optional)
+                'preference.email_notifications' => 'nullable|boolean',
+                'preference.sms_notifications'   => 'nullable|boolean',
+                'preference.push_notifications'  => 'nullable|boolean',
+
+                // Display (optional)
+                'display.language'          => 'nullable|string|max:10',
+                'display.sms_notifications' => 'nullable|boolean',
+                'display.theme'             => 'nullable|string|max:50',
             ]);
 
-            // Handle profile image upload
-            if ($request->hasFile('profile_image')) {
-                $image = $request->file('profile_image');
-                $imageName = time() . '_' . $image->getClientOriginalName();
-                $image->move(public_path('profile_images'), $imageName);
-                $validated['profile_image'] = 'profile_images/' . $imageName;
+            // 1) Update main user fields
+            $user->update([
+                'name'    => $validated['name'],
+                'email'   => $validated['email'],
+                'phone'   => $validated['phone']   ?? $user->phone,
+                'address' => $validated['address'] ?? $user->address,
+            ]);
+
+            // 2) Update / create related models (all optional)
+
+            // Emergency contact
+            $emergencyData = $request->input('emergency_contact', []);
+            if (is_array($emergencyData) && !empty(array_filter($emergencyData, fn($v) => $v !== null && $v !== ''))) {
+                $emergency = UserEmergencyContact::firstOrCreate([
+                    'user_id' => $user->id,
+                ]);
+
+                $emergency->fill([
+                    'name'         => $emergencyData['name']         ?? $emergency->name,
+                    'relationship' => $emergencyData['relationship'] ?? $emergency->relationship,
+                    'phone'        => $emergencyData['phone']        ?? $emergency->phone,
+                ]);
+                $emergency->save();
             }
 
-            $user->update($validated);
+            // Security setting
+            $securityData = $request->input('security_setting', []);
+            if (is_array($securityData) && array_key_exists('two_factor_auth', $securityData)) {
+                $security = SecuritySetting::firstOrCreate([
+                    'user_id' => $user->id,
+                ]);
+
+                $security->two_factor_auth = $securityData['two_factor_auth'];
+                $security->save();
+            }
+
+            // Preference
+            $prefData = $request->input('preference', []);
+            if (is_array($prefData) && !empty(array_filter($prefData, fn($v) => $v !== null && $v !== ''))) {
+                $pref = Prefernce::firstOrCreate([
+                    'user_id' => $user->id,
+                ]);
+
+                $pref->fill([
+                    'email_notifications' => $prefData['email_notifications'] ?? $pref->email_notifications,
+                    'sms_notifications'   => $prefData['sms_notifications']   ?? $pref->sms_notifications,
+                    'push_notifications'  => $prefData['push_notifications']  ?? $pref->push_notifications,
+                ]);
+                $pref->save();
+            }
+
+            // Display
+            $displayData = $request->input('display', []);
+            if (is_array($displayData) && !empty(array_filter($displayData, fn($v) => $v !== null && $v !== ''))) {
+                $display = Display::firstOrCreate([
+                    'user_id' => $user->id,
+                ]);
+
+                $display->fill([
+                    'language'          => $displayData['language']          ?? $display->language,
+                    'sms_notifications' => $displayData['sms_notifications'] ?? $display->sms_notifications,
+                    'theme'             => $displayData['theme']             ?? $display->theme,
+                ]);
+                $display->save();
+            }
+
+            // Reload relations for response
+            $user->load(['emergencyContact', 'securitySetting', 'preference', 'display']);
 
             return $this->successResponse([
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'address' => $user->address,
-                'profile_image' => $user->profile_image,
+                'id'            => $user->id,
+                'name'          => $user->name,
+                'email'         => $user->email,
+                'phone'         => $user->phone,
+                'address'       => $user->address,
+                'profile_image' => $user->profile_image ? Storage::url($user->profile_image) : null,
+                'type'          => $user->type,
+                'reg_user_id'   => $user->reg_user_id,
+                'is_subscribe'  => $user->is_subscribe,
+
+                'emergency_contact' => [
+                    'name'         => $user->emergencyContact->name ?? null,
+                    'relationship' => $user->emergencyContact->relationship ?? null,
+                    'phone'        => $user->emergencyContact->phone ?? null,
+                ],
+                'security_setting' => [
+                    'two_factor_auth' => $user->securitySetting->two_factor_auth ?? null,
+                ],
+                'preference' => [
+                    'email_notifications' => $user->preference->email_notifications ?? null,
+                    'sms_notifications'   => $user->preference->sms_notifications ?? null,
+                    'push_notifications'  => $user->preference->push_notifications ?? null,
+                ],
+                'display' => [
+                    'language'          => $user->display->language ?? null,
+                    'sms_notifications' => $user->display->sms_notifications ?? null,
+                    'theme'             => $user->display->theme ?? null,
+                ],
             ], 'Profile updated successfully', 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse('Validation error', $e->errors(), 422);
