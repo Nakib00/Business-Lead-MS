@@ -30,6 +30,13 @@ class User extends Authenticatable implements JWTSubject
         'type',
         'reg_user_id',
         'is_subscribe',
+        'job_title',
+        'department',
+        'date_of_birth',
+        'hire_date',
+        'team',
+        'bio',
+        'status',
     ];
 
     /**
@@ -49,11 +56,11 @@ class User extends Authenticatable implements JWTSubject
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'password' => 'hashed',
+        'password'          => 'hashed',
     ];
 
     /**
-     * Get the identifier that will be stored in the JWT subject claim.
+     * JWT identifier.
      *
      * @return mixed
      */
@@ -63,7 +70,7 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
-     * Return a key-value array, containing any custom claims to be added to the JWT.
+     * Custom claims for JWT.
      *
      * @return array
      */
@@ -71,16 +78,19 @@ class User extends Authenticatable implements JWTSubject
     {
         return [
             'user' => [
-                'id' => $this->id,
-                'name' => $this->name,
-                'email' => $this->email,
-                'phone' => $this->phone,
+                'id'            => $this->id,
+                'name'          => $this->name,
+                'email'         => $this->email,
+                'phone'         => $this->phone,
                 'profile_image' => $this->profile_image,
-                'type' => $this->type,
+                'type'          => $this->type,
             ],
         ];
     }
 
+    /**
+     * Projects relationship.
+     */
     public function projects()
     {
         return $this->belongsToMany(Project::class)
@@ -88,6 +98,9 @@ class User extends Authenticatable implements JWTSubject
             ->withTimestamps();
     }
 
+    /**
+     * Tasks relationship.
+     */
     public function tasks()
     {
         return $this->belongsToMany(Task::class)
@@ -95,17 +108,83 @@ class User extends Authenticatable implements JWTSubject
             ->withTimestamps();
     }
 
+    /**
+     * Auto-append attributes.
+     */
     protected $appends = ['profile_image_url'];
 
+    /**
+     * Accessor for profile image URL.
+     */
     public function getProfileImageUrlAttribute()
     {
         $val = $this->attributes['profile_image'] ?? null;
+
         if (!$val) {
-            return asset('images/placeholders/user.png'); // optional fallback
+            return asset('images/placeholders/user.png'); // fallback
         }
+
         if (Str::startsWith($val, ['https://hubbackend.desklago.com/'])) {
             return $val;
         }
+
         return Storage::disk('public')->url($val);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships for settings / preferences
+    |--------------------------------------------------------------------------
+    */
+
+    public function emergencyContact()
+    {
+        return $this->hasOne(UserEmergencyContact::class);
+    }
+
+    public function securitySetting()
+    {
+        return $this->hasOne(SecuritySetting::class);
+    }
+
+    public function preference()
+    {
+        // model class is Prefernce as you showed
+        return $this->hasOne(Prefernce::class);
+    }
+
+    public function display()
+    {
+        return $this->hasOne(Display::class);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Model events - auto create related records on user create
+    |--------------------------------------------------------------------------
+    */
+
+    protected static function booted()
+    {
+        static::created(function ($user) {
+            // Only register user_id in these tables.
+            // Other columns will use DB defaults / null.
+
+            \App\Models\UserEmergencyContact::firstOrCreate([
+                'user_id' => $user->id,
+            ]);
+
+            \App\Models\SecuritySetting::firstOrCreate([
+                'user_id' => $user->id,
+            ]);
+
+            \App\Models\Prefernce::firstOrCreate([
+                'user_id' => $user->id,
+            ]);
+
+            \App\Models\Display::firstOrCreate([
+                'user_id' => $user->id,
+            ]);
+        });
     }
 }
