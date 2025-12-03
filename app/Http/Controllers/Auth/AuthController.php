@@ -444,7 +444,6 @@ class AuthController extends Controller
 
                 $display->fill([
                     'language'          => $displayData['language']          ?? $display->language,
-                    'sms_notifications' => $displayData['sms_notifications'] ?? $display->sms_notifications,
                     'theme'             => $displayData['theme']             ?? $display->theme,
                 ]);
                 $display->save();
