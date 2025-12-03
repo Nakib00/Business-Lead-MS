@@ -381,7 +381,6 @@ class AuthController extends Controller
 
                 // Display (optional)
                 'display.language'          => 'nullable|string|max:10',
-                'display.sms_notifications' => 'nullable|boolean',
                 'display.theme'             => 'nullable|string|max:50',
             ]);
 
