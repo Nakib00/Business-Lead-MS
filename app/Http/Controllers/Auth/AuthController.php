@@ -303,7 +303,7 @@ class AuthController extends Controller
                 'email'         => $user->email,
                 'phone'         => $user->phone,
                 'address'       => $user->address,
-                'profile_image' => $user->profile_image ?? null,
+                'profile_image' => $user->profile_image_url,
                 'type'          => $user->type,
                 'reg_user_id'   => $user->reg_user_id,
                 'is_subscribe'  => $user->is_subscribe,
