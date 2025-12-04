@@ -328,7 +328,6 @@ class AuthController extends Controller
 
                 'display' => [
                     'language'          => $user->display->language ?? null,
-                    'sms_notifications' => $user->display->sms_notifications ?? null,
                     'theme'             => $user->display->theme ?? null,
                 ],
             ];
