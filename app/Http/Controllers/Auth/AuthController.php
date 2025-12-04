@@ -14,7 +14,7 @@ use Exception;
 use App\Traits\ApiResponseTrait;
 use App\Models\UserEmergencyContact;
 use App\Models\SecuritySetting;
-use App\Models\Prefernce; 
+use App\Models\Prefernce;
 use App\Models\Display;
 
 class AuthController extends Controller
@@ -303,9 +303,7 @@ class AuthController extends Controller
                 'email'         => $user->email,
                 'phone'         => $user->phone,
                 'address'       => $user->address,
-                'profile_image' => $user->profile_image
-                    ? Storage::url($user->profile_image)
-                    : null,
+                'profile_image' => $user->profile_image ?? null,
                 'type'          => $user->type,
                 'reg_user_id'   => $user->reg_user_id,
                 'is_subscribe'  => $user->is_subscribe,
