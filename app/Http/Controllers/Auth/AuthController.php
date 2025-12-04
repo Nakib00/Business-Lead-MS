@@ -307,6 +307,12 @@ class AuthController extends Controller
                 'type'          => $user->type,
                 'reg_user_id'   => $user->reg_user_id,
                 'is_subscribe'  => $user->is_subscribe,
+                'bio' => $user->bio,
+                'job_title' => $user->job_title,
+                'department' => $user->department,
+                'date_of_birth' => $user->date_of_birth,
+                'hire_date' => $user->hire_date,
+                'team' => $user->team,
 
                 'emergency_contact' => [
                     'name'         => $user->emergencyContact->name ?? null,
