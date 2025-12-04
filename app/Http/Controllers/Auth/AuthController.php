@@ -313,6 +313,7 @@ class AuthController extends Controller
                 'date_of_birth' => $user->date_of_birth,
                 'hire_date' => $user->hire_date,
                 'team' => $user->team,
+                'timezone'=> $user->timezone,
 
                 'emergency_contact' => [
                     'name'         => $user->emergencyContact->name ?? null,
