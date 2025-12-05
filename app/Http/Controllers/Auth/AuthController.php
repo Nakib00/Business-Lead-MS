@@ -349,147 +349,175 @@ class AuthController extends Controller
 
     // update user profile
     public function updateProfile(Request $request, $userId)
-    {
-        try {
-            $authUser = Auth::user();
+{
+    try {
+        $authUser = Auth::user();
 
-            if (!$authUser) {
-                return $this->errorResponse('Unauthorized. User not authenticated.', 401);
-            }
-
-            $user = User::find($userId);
-
-            if (!$user) {
-                return $this->errorResponse('User not found.', 404);
-            }
-
-            // Validate request (user fields required as before; others optional)
-            $validated = $request->validate([
-                'name'    => 'required|string|max:255',
-                'email'   => 'required|email|unique:users,email,' . $user->id,
-                'phone'   => 'nullable|string|max:20',
-                'address' => 'nullable|string|max:255',
-
-                // Emergency contact (optional)
-                'emergency_contact.name'         => 'nullable|string|max:255',
-                'emergency_contact.relationship' => 'nullable|string|max:255',
-                'emergency_contact.phone'        => 'nullable|string|max:20',
-
-                // Security setting (optional)
-                'security_setting.two_factor_auth' => 'nullable|boolean',
-
-                // Preference (optional)
-                'preference.email_notifications' => 'nullable|boolean',
-                'preference.sms_notifications'   => 'nullable|boolean',
-                'preference.push_notifications'  => 'nullable|boolean',
-
-                // Display (optional)
-                'display.language'          => 'nullable|string|max:10',
-                'display.theme'             => 'nullable|string|max:50',
-            ]);
-
-            // 1) Update main user fields
-            $user->update([
-                'name'    => $validated['name'],
-                'email'   => $validated['email'],
-                'phone'   => $validated['phone']   ?? $user->phone,
-                'address' => $validated['address'] ?? $user->address,
-            ]);
-
-            // 2) Update / create related models (all optional)
-
-            // Emergency contact
-            $emergencyData = $request->input('emergency_contact', []);
-            if (is_array($emergencyData) && !empty(array_filter($emergencyData, fn($v) => $v !== null && $v !== ''))) {
-                $emergency = UserEmergencyContact::firstOrCreate([
-                    'user_id' => $user->id,
-                ]);
-
-                $emergency->fill([
-                    'name'         => $emergencyData['name']         ?? $emergency->name,
-                    'relationship' => $emergencyData['relationship'] ?? $emergency->relationship,
-                    'phone'        => $emergencyData['phone']        ?? $emergency->phone,
-                ]);
-                $emergency->save();
-            }
-
-            // Security setting
-            $securityData = $request->input('security_setting', []);
-            if (is_array($securityData) && array_key_exists('two_factor_auth', $securityData)) {
-                $security = SecuritySetting::firstOrCreate([
-                    'user_id' => $user->id,
-                ]);
-
-                $security->two_factor_auth = $securityData['two_factor_auth'];
-                $security->save();
-            }
-
-            // Preference
-            $prefData = $request->input('preference', []);
-            if (is_array($prefData) && !empty(array_filter($prefData, fn($v) => $v !== null && $v !== ''))) {
-                $pref = Prefernce::firstOrCreate([
-                    'user_id' => $user->id,
-                ]);
-
-                $pref->fill([
-                    'email_notifications' => $prefData['email_notifications'] ?? $pref->email_notifications,
-                    'sms_notifications'   => $prefData['sms_notifications']   ?? $pref->sms_notifications,
-                    'push_notifications'  => $prefData['push_notifications']  ?? $pref->push_notifications,
-                ]);
-                $pref->save();
-            }
-
-            // Display
-            $displayData = $request->input('display', []);
-            if (is_array($displayData) && !empty(array_filter($displayData, fn($v) => $v !== null && $v !== ''))) {
-                $display = Display::firstOrCreate([
-                    'user_id' => $user->id,
-                ]);
-
-                $display->fill([
-                    'language'          => $displayData['language']          ?? $display->language,
-                    'theme'             => $displayData['theme']             ?? $display->theme,
-                ]);
-                $display->save();
-            }
-
-            // Reload relations for response
-            $user->load(['emergencyContact', 'securitySetting', 'preference', 'display']);
-
-            return $this->successResponse([
-                'id'            => $user->id,
-                'name'          => $user->name,
-                'email'         => $user->email,
-                'phone'         => $user->phone,
-                'address'       => $user->address,
-                'type'          => $user->type,
-                'reg_user_id'   => $user->reg_user_id,
-                'is_subscribe'  => $user->is_subscribe,
-
-                'emergency_contact' => [
-                    'name'         => $user->emergencyContact->name ?? null,
-                    'relationship' => $user->emergencyContact->relationship ?? null,
-                    'phone'        => $user->emergencyContact->phone ?? null,
-                ],
-                'security_setting' => [
-                    'two_factor_auth' => $user->securitySetting->two_factor_auth ?? null,
-                ],
-                'preference' => [
-                    'email_notifications' => $user->preference->email_notifications ?? null,
-                    'sms_notifications'   => $user->preference->sms_notifications ?? null,
-                    'push_notifications'  => $user->preference->push_notifications ?? null,
-                ],
-                'display' => [
-                    'language'          => $user->display->language ?? null,
-                    'theme'             => $user->display->theme ?? null,
-                ],
-            ], 'Profile updated successfully', 200);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return $this->errorResponse('Validation error', $e->errors(), 422);
-        } catch (Exception $e) {
-            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
+        if (!$authUser) {
+            return $this->errorResponse('Unauthorized. User not authenticated.', 401);
         }
+
+        $user = User::find($userId);
+
+        if (!$user) {
+            return $this->errorResponse('User not found.', 404);
+        }
+
+        // Validate request
+        $validated = $request->validate([
+            'name'    => 'required|string|max:255',
+            'email'   => 'required|email|unique:users,email,' . $user->id,
+            'phone'   => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:255',
+
+            'job_title'    => 'nullable|string|max:255',
+            'department'   => 'nullable|string|max:255',
+            'date_of_birth'=> 'nullable|date',
+            'hire_date'    => 'nullable|date',
+            'team'         => 'nullable|string|max:255',
+            'bio'          => 'nullable|string',
+            'status'       => 'nullable|string|max:50',  
+            'timezone'     => 'nullable|string|max:100',
+
+            // Emergency contact (optional)
+            'emergency_contact.name'         => 'nullable|string|max:255',
+            'emergency_contact.relationship' => 'nullable|string|max:255',
+            'emergency_contact.phone'        => 'nullable|string|max:20',
+
+            // Security setting (optional)
+            'security_setting.two_factor_auth' => 'nullable|boolean',
+
+            // Preference (optional)
+            'preference.email_notifications' => 'nullable|boolean',
+            'preference.sms_notifications'   => 'nullable|boolean',
+            'preference.push_notifications'  => 'nullable|boolean',
+
+            // Display (optional)
+            'display.language' => 'nullable|string|max:10',
+            'display.theme'    => 'nullable|string|max:50',
+        ]);
+
+        // 1) Update main user fields
+        $user->update([
+            'name'         => $validated['name'],
+            'email'        => $validated['email'],
+            'phone'        => $validated['phone']        ?? $user->phone,
+            'address'      => $validated['address']      ?? $user->address,
+
+            // New fields
+            'job_title'    => $validated['job_title']    ?? $user->job_title,
+            'department'   => $validated['department']   ?? $user->department,
+            'date_of_birth'=> $validated['date_of_birth']?? $user->date_of_birth,
+            'hire_date'    => $validated['hire_date']    ?? $user->hire_date,
+            'team'         => $validated['team']         ?? $user->team,
+            'bio'          => $validated['bio']          ?? $user->bio,
+            'status'       => $validated['status']       ?? $user->status,
+            'timezone'     => $validated['timezone']     ?? $user->timezone,
+        ]);
+
+        // 2) Update / create related models (all optional)
+
+        // Emergency contact
+        $emergencyData = $request->input('emergency_contact', []);
+        if (is_array($emergencyData) && !empty(array_filter($emergencyData, fn($v) => $v !== null && $v !== ''))) {
+            $emergency = UserEmergencyContact::firstOrCreate([
+                'user_id' => $user->id,
+            ]);
+
+            $emergency->fill([
+                'name'         => $emergencyData['name']         ?? $emergency->name,
+                'relationship' => $emergencyData['relationship'] ?? $emergency->relationship,
+                'phone'        => $emergencyData['phone']        ?? $emergency->phone,
+            ]);
+            $emergency->save();
+        }
+
+        // Security setting
+        $securityData = $request->input('security_setting', []);
+        if (is_array($securityData) && array_key_exists('two_factor_auth', $securityData)) {
+            $security = SecuritySetting::firstOrCreate([
+                'user_id' => $user->id,
+            ]);
+
+            $security->two_factor_auth = $securityData['two_factor_auth'];
+            $security->save();
+        }
+
+        // Preference
+        $prefData = $request->input('preference', []);
+        if (is_array($prefData) && !empty(array_filter($prefData, fn($v) => $v !== null && $v !== ''))) {
+            $pref = Prefernce::firstOrCreate([
+                'user_id' => $user->id,
+            ]);
+
+            $pref->fill([
+                'email_notifications' => $prefData['email_notifications'] ?? $pref->email_notifications,
+                'sms_notifications'   => $prefData['sms_notifications']   ?? $pref->sms_notifications,
+                'push_notifications'  => $prefData['push_notifications']  ?? $pref->push_notifications,
+            ]);
+            $pref->save();
+        }
+
+        // Display
+        $displayData = $request->input('display', []);
+        if (is_array($displayData) && !empty(array_filter($displayData, fn($v) => $v !== null && $v !== ''))) {
+            $display = Display::firstOrCreate([
+                'user_id' => $user->id,
+            ]);
+
+            $display->fill([
+                'language' => $displayData['language'] ?? $display->language,
+                'theme'    => $displayData['theme']    ?? $display->theme,
+            ]);
+            $display->save();
+        }
+
+        // Reload relations for response
+        $user->load(['emergencyContact', 'securitySetting', 'preference', 'display']);
+
+        return $this->successResponse([
+            'id'            => $user->id,
+            'name'          => $user->name,
+            'email'         => $user->email,
+            'phone'         => $user->phone,
+            'address'       => $user->address,
+            'type'          => $user->type,
+            'reg_user_id'   => $user->reg_user_id,
+            'is_subscribe'  => $user->is_subscribe,
+            'job_title'     => $user->job_title,
+            'department'    => $user->department,
+            'date_of_birth' => $user->date_of_birth,
+            'hire_date'     => $user->hire_date,
+            'team'          => $user->team,
+            'bio'           => $user->bio,
+            'status'        => $user->status,
+            'timezone'      => $user->timezone,
+
+            'emergency_contact' => [
+                'name'         => $user->emergencyContact->name ?? null,
+                'relationship' => $user->emergencyContact->relationship ?? null,
+                'phone'        => $user->emergencyContact->phone ?? null,
+            ],
+            'security_setting' => [
+                'two_factor_auth' => $user->securitySetting->two_factor_auth ?? null,
+            ],
+            'preference' => [
+                'email_notifications' => $user->preference->email_notifications ?? null,
+                'sms_notifications'   => $user->preference->sms_notifications ?? null,
+                'push_notifications'  => $user->preference->push_notifications ?? null,
+            ],
+            'display' => [
+                'language' => $user->display->language ?? null,
+                'theme'    => $user->display->theme ?? null,
+            ],
+        ], 'Profile updated successfully', 200);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return $this->errorResponse('Validation error', $e->errors(), 422);
+    } catch (\Exception $e) {
+        return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
     }
+}
+
 
 
     // change password
