@@ -19,6 +19,7 @@ Route::middleware('auth:api')->group(function () {
         Route::put('/toggle-subscribe/{userid}', [AuthController::class, 'toggleSubscribe']);
         Route::get('/profile', [AuthController::class, 'profile']);
         Route::put('/profile/update/{userId}', [AuthController::class, 'updateProfile']);
+        Route::post('/profile-image/{userId}', [AuthController::class, 'updateProfileImage']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
     });
 });
