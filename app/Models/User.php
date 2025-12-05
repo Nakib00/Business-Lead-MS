@@ -122,15 +122,13 @@ class User extends Authenticatable implements JWTSubject
         $val = $this->attributes['profile_image'] ?? null;
 
         if (!$val) {
-            return asset('images/placeholders/user.png'); // fallback
+            return asset('images/placeholders/user.png');
         }
 
-        if (Str::startsWith($val, ['https://hubbackend.desklago.com/'])) {
-            return $val;
-        }
-
-        return Storage::disk('public')->url($val);
+        // Build the custom path you want
+        return env('APP_URL') . '/storage/app/public/' . $val;
     }
+
 
     /*
     |--------------------------------------------------------------------------
