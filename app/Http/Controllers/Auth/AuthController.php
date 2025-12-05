@@ -569,42 +569,31 @@ class AuthController extends Controller
                 return $this->errorResponse('User not found.', 404);
             }
 
-            // Optional: restrict so only self can update image
-            // if ($authUser->id !== $user->id) {
-            //     return $this->errorResponse('Forbidden. You cannot update this profile image.', 403);
-            // }
-
             // Validate file
             $request->validate([
                 'profile_image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             ]);
 
             if ($request->hasFile('profile_image')) {
-                // Store file
 
-                // Optional: delete old image if you want (only if it’s your own domain/path)
-                $imagePathDB = null;
+                // Store only the relative path
+                $imagePath = $request->file('profile_image')->store('UserProfile', 'public');
 
-                if ($request->hasFile('profile_image')) {
-                    $imagePath = $request->file('profile_image')->store('UserProfile', 'public');
-                    $imagePathDB = env('APP_URL') . '/storage/app/public/' . $imagePath;
-                }
-
-                // Save new path in DB
-                $user->profile_image = $imagePathDB;
+                // Save only "UserProfile/xxxx.jpg"
+                $user->profile_image = $imagePath;
                 $user->save();
             } else {
                 return $this->errorResponse('No profile image uploaded.', 422);
             }
 
-            // Reload to get accessor (profile_image_url)
+            // Refresh to load accessor correctly
             $user->refresh();
 
             return $this->successResponse([
-                'id'                 => $user->id,
-                'name'               => $user->name,
-                'email'              => $user->email,    
-                'profile_image_url'  => $user->profile_image_url,
+                'id'                => $user->id,
+                'name'              => $user->name,
+                'email'             => $user->email,
+                'profile_image_url' => $user->profile_image_url,
             ], 'Profile image updated successfully', 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse('Validation error', $e->errors(), 422);
