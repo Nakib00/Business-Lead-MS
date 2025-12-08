@@ -106,7 +106,7 @@ class AuthController extends Controller
             // 3. Check if Email is Verified
             if ($user->email_verified_at === null) {
                 JWTAuth::invalidate($token);
-                return $this->errorResponse('Your email is not verified. Please verify your email first.', 403);
+                return $this->errorResponse('Login failed', 'An error occurred during login.', 500);
             }
 
             // 4. Login Successful
