@@ -60,19 +60,19 @@
 
         .button {
             display: inline-block;
-            background-color: #4f46e5;
+            background-color: #000000;
             color: #ffffff;
             text-decoration: none;
             padding: 14px 30px;
             border-radius: 6px;
             font-weight: bold;
             font-size: 16px;
-            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: background-color 0.3s ease;
         }
 
         .button:hover {
-            background-color: #4338ca;
+            background-color: #333333;
         }
 
         .footer {
@@ -115,8 +115,6 @@
 
         <div class="footer">
             &copy; {{ date('Y') }} Hub.desklago. All rights reserved.<br>
-            If you're having trouble clicking the button, copy and paste the URL below into your web browser:<br>
-            <a href="{{ $verificationUrl }}">{{ $verificationUrl }}</a>
         </div>
     </div>
 </body>
