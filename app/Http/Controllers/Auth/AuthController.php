@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Exception;
+use Illuminate\Auth\Events\Registered;
 use App\Traits\ApiResponseTrait;
 use App\Models\UserEmergencyContact;
 use App\Models\SecuritySetting;
@@ -23,6 +24,7 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         try {
+            // 1. Validation
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users',
@@ -35,18 +37,17 @@ class AuthController extends Controller
             ]);
 
             if ($validator->fails()) {
-                $firstError = $validator->errors()->first();
-                return $this->errorResponse('Validation error', $firstError, 422);
+                return $this->errorResponse('Validation error', $validator->errors()->first(), 422);
             }
 
-
-            $imagePathDB = null;
-
+            // 2. Image Handling (Store relative path only)
+            $imagePath = null;
             if ($request->hasFile('profile_image')) {
+                // Stores in storage/app/public/UserProfile
                 $imagePath = $request->file('profile_image')->store('UserProfile', 'public');
-                $imagePathDB = env('APP_URL') . '/storage/app/public/' . $imagePath;
             }
 
+            // 3. Create User
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
@@ -54,53 +55,70 @@ class AuthController extends Controller
                 'phone' => $request->phone,
                 'address' => $request->address,
                 'type' => $request->type,
-                'profile_image' => $imagePathDB,
+                'profile_image' => $imagePath, // Save relative path: "UserProfile/xyz.jpg"
                 'is_suspended' => 0,
                 'reg_user_id' => $request->reg_user_id ?? null,
                 'is_subscribe' => 0,
             ]);
 
-            event(new \Illuminate\Auth\Events\Registered($user));
+            // 4. Trigger Email Verification Event
+            // This sends the standard Laravel verification email
+            event(new Registered($user));
 
-            $token = JWTAuth::fromUser($user);
-
-            $data = [
-                'token' => $token,
-                'user' => $this->formatUser($user),
-            ];
-
-            return $this->successResponse($data, 'Registration successful', 201);
+            // 5. Response (NO TOKEN)
+            // We do not log them in yet. They must verify email first.
+            return $this->successResponse(
+                $this->formatUser($user),
+                'Registration successful. Please check your email to verify your account.',
+                201
+            );
         } catch (Exception $e) {
             \Log::error('Register Error: ' . $e->getMessage());
-
-            return $this->errorResponse('Registration failed', "Something went wrong here...", 500);
+            return $this->errorResponse('Registration failed', 'Something went wrong during registration.', 500);
         }
     }
 
 
     public function login(Request $request)
     {
-        $credentials = $request->only('email', 'password');
+        try {
+            $credentials = $request->only('email', 'password');
 
-        if (!$token = JWTAuth::attempt($credentials)) {
-            return $this->errorResponse('Invalid credentials', 401);
+            // 1. Attempt to generate token with credentials
+            if (!$token = JWTAuth::attempt($credentials)) {
+                return $this->errorResponse('Invalid email or password.', 401);
+            }
+
+            // Get the authenticated user
+            $user = Auth::user();
+
+            // 2. Check if Suspended
+            if ($user->is_suspended) {
+                JWTAuth::invalidate($token); // Kill the token immediately
+                return $this->errorResponse('Your account is suspended. Please contact support.', 403);
+            }
+
+            // 3. Check if Email is Verified
+            if (!$user->hasVerifiedEmail()) {
+                JWTAuth::invalidate($token); // Kill the token immediately
+
+                // Optional: You could add a button on frontend to hit the /resend api here
+                return $this->errorResponse('Email not verified. Please check your inbox.', 403);
+            }
+
+            // 4. Login Successful
+            $data = [
+                'token' => $token,
+                'user' => $this->formatUser($user),
+                'token_type' => 'bearer',
+                'expires_in' => JWTAuth::factory()->getTTL() * 60
+            ];
+
+            return $this->successResponse($data, 'Login successful', 200);
+        } catch (Exception $e) {
+            \Log::error('Login Error: ' . $e->getMessage());
+            return $this->errorResponse('Login failed', 'An error occurred during login.', 500);
         }
-
-        $user = Auth::user();
-
-        if ($user->is_suspended) {
-            return $this->errorResponse('Your account is suspended. Please contact support.', 403);
-        }
-
-        if (!$user->hasVerifiedEmail()) {
-            return $this->errorResponse('Email not verified. Please verify your email.', 403);
-        }
-
-        $data = [
-            'token' => $token,
-            'user' => $this->formatUser($user),
-        ];
-        return $this->successResponse($data, 'Login successful', 200);
     }
 
     private function formatUser($user)
