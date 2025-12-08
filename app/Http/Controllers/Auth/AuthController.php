@@ -84,32 +84,31 @@ class AuthController extends Controller
         try {
             $credentials = $request->only('email', 'password');
 
-            // 1. Attempt to generate token with credentials
-            if (!$token = JWTAuth::attempt($credentials)) {
-                return $this->errorResponse('Invalid email or password.', 401);
+            // 1. Retrieve the user by email first
+            $user = User::where('email', $request->email)->first();
+
+            // 2. Check if user exists and password is correct
+            if (!$user || !Hash::check($request->password, $user->password)) {
+                return $this->errorResponse('Invalid email or password.', null, 401);
             }
 
-            // Get the authenticated user
-            $user = Auth::user();
-
-            if (!$user) {
-                JWTAuth::invalidate($token);
-                return $this->errorResponse('Authentication failed.', 401);
-            }
-
-            // 2. Check if Suspended
+            // 3. Check if Suspended (Do this BEFORE generating token)
             if ($user->is_suspended) {
-                JWTAuth::invalidate($token); // Kill the token immediately
-                return $this->errorResponse('Your account is suspended. Please contact support.', 403);
+                return $this->errorResponse('Your account is suspended. Please contact support.', null, 403);
             }
 
-            // 3. Check if Email is Verified
+            // 4. Check if Email is Verified (Do this BEFORE generating token)
             if ($user->email_verified_at === null) {
-                JWTAuth::invalidate($token);
+                // No token to invalidate because we haven't created one yet
                 return $this->errorResponse('Your email is not verified. Please verify your email first.', null, 403);
             }
 
-            // 4. Login Successful
+            // 5. Generate Token (Now that we know the user is valid)
+            if (!$token = JWTAuth::fromUser($user)) {
+                return $this->errorResponse('Could not create token.', null, 500);
+            }
+
+            // 6. Login Successful
             $data = [
                 'token' => $token,
                 'user' => $this->formatUser($user),
@@ -118,12 +117,11 @@ class AuthController extends Controller
             ];
 
             return $this->successResponse($data, 'Login successful', 200);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \Log::error('Login Error: ' . $e->getMessage());
             return $this->errorResponse('Login failed', 'An error occurred during login.', 500);
         }
     }
-
     private function formatUser($user)
     {
         return [
