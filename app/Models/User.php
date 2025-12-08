@@ -11,6 +11,7 @@ use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Auth\MustVerifyEmail;
+use App\Notifications\CustomVerifyEmail;
 
 class User extends Authenticatable implements JWTSubject, MustVerifyEmailContract
 {
@@ -72,6 +73,10 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmailContrac
         return $this->getKey();
     }
 
+    public function sendEmailVerificationNotification()
+    {
+        $this->notify(new CustomVerifyEmail);
+    }
     /**
      * Custom claims for JWT.
      *

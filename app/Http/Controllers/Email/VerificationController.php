@@ -14,34 +14,31 @@ class VerificationController extends Controller
 
     public function verify(Request $request)
     {
-        //  Find user by ID from the Route parameter
         $user = User::find($request->route('id'));
 
-        if (!$user) {
-            return $this->errorResponse('Invalid user.', 404);
+        // 1. Validations (Invalid User / Bad Signature)
+        if (!$user || !hash_equals((string) $request->route('hash'), sha1($user->getEmailForVerification()))) {
+            // Optional: Redirect to an error page on your frontend instead of JSON
+            return redirect('https://hub.desklago.com/auth/login?error=invalid_link');
         }
 
-        //  Check the signature (hash) matches
-        if (!hash_equals((string) $request->route('hash'), sha1($user->getEmailForVerification()))) {
-            return $this->errorResponse('Invalid or expired URL provided.', 401);
-        }
-
-        //  Check signature validity (expiration)
         if (!$request->hasValidSignature()) {
-            return $this->errorResponse('Invalid or expired URL provided.', 401);
+            return redirect('https://hub.desklago.com/auth/login?error=expired_link');
         }
 
-        //  Check if already verified
+        // 2. Already Verified? Redirect immediately
         if ($user->hasVerifiedEmail()) {
-            return $this->errorResponse('Email already verified.', 400);
+            return redirect('https://hub.desklago.com/auth/login?status=already_verified');
         }
 
-        // Mark as verified
+        // 3. Mark Verified
         if ($user->markEmailAsVerified()) {
             event(new Verified($user));
         }
 
-        return $this->successResponse(null, 'Email verified successfully. You can now login.', 200);
+        // 4. SUCCESS: Redirect to your frontend Login page
+        // I added a query param ?verified=1 so your frontend can show a popup "Success!"
+        return redirect('https://hub.desklago.com/auth/login?verified=1');
     }
 
     public function resendVerificationEmail(Request $request)
