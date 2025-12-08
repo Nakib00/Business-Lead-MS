@@ -104,10 +104,8 @@ class AuthController extends Controller
             }
 
             // 3. Check if Email is Verified
-            if (!$user->email_verified_at) {
-                JWTAuth::invalidate($token); // Kill the token immediately
-
-                // Optional: You could add a button on frontend to hit the /resend api here
+            if (!empty($user->email_verified_at) && $user->email_verified_at === null) {
+                JWTAuth::invalidate($token);
                 return $this->errorResponse('Your email is not verified. Please verify your email first.', 403);
             }
 
