@@ -92,6 +92,11 @@ class AuthController extends Controller
             // Get the authenticated user
             $user = Auth::user();
 
+            if (!$user) {
+                JWTAuth::invalidate($token);
+                return $this->errorResponse('Authentication failed.', 401);
+            }
+
             // 2. Check if Suspended
             if ($user->is_suspended) {
                 JWTAuth::invalidate($token); // Kill the token immediately
@@ -103,7 +108,7 @@ class AuthController extends Controller
                 JWTAuth::invalidate($token); // Kill the token immediately
 
                 // Optional: You could add a button on frontend to hit the /resend api here
-                return $this->errorResponse('Email not verified. Please check your inbox.', 403);
+                return $this->errorResponse('Your email is not verified. Please verify your email first.', 403);
             }
 
             // 4. Login Successful
