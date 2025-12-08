@@ -45,20 +45,24 @@ class VerificationController extends Controller
      */
     public function resendVerificationEmail(Request $request)
     {
-        $request->validate(['email' => 'required|email']);
+        try {
+            $request->validate(['email' => 'required|email']);
 
-        $user = User::where('email', $request->email)->first();
+            $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
-            return $this->errorResponse('User not found.', 404);
+            if (!$user) {
+                return $this->errorResponse('User not found.', 404);
+            }
+
+            if ($user->hasVerifiedEmail()) {
+                return $this->errorResponse('Email already verified.', 400);
+            }
+
+            $user->sendEmailVerificationNotification();
+
+            return $this->successResponse(null, 'Verification link sent!', 200);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to send verification email: ' . $e->getMessage(), 500);
         }
-
-        if ($user->hasVerifiedEmail()) {
-            return $this->errorResponse('Email already verified.', 400);
-        }
-
-        $user->sendEmailVerificationNotification();
-
-        return $this->successResponse(null, 'Verification link sent!', 200);
     }
 }
