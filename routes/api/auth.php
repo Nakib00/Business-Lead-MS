@@ -5,7 +5,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Email\VerificationController;
 
 // Email Verification Routes
-Route::get('/email/verify/{user_id}', [VerificationController::class, 'verify'])
+Route::get('/email/verify/{id}/{hash}', [VerificationController::class, 'verify'])
     ->name('verification.verify');
 
 Route::post('/email/resend', [VerificationController::class, 'resendVerificationEmail'])
