@@ -84,7 +84,14 @@ class AuthController extends Controller
         try {
             $credentials = $request->only('email', 'password');
 
-            // 1. Attempt to generate token with credentials
+            if (!$user->hasVerifiedEmail()) {
+                JWTAuth::invalidate($token); // Kill the token immediately
+
+                // Optional: You could add a button on frontend to hit the /resend api here
+                return $this->errorResponse('Your email is not verified. Please verify your email first.', 403);
+            }
+
+            //  Attempt to generate token with credentials
             if (!$token = JWTAuth::attempt($credentials)) {
                 return $this->errorResponse('Invalid email or password.', 401);
             }
@@ -97,21 +104,15 @@ class AuthController extends Controller
                 return $this->errorResponse('Authentication failed.', 401);
             }
 
-            // 2. Check if Suspended
+            // Check if Suspended
             if ($user->is_suspended) {
                 JWTAuth::invalidate($token); // Kill the token immediately
                 return $this->errorResponse('Your account is suspended. Please contact support.', 403);
             }
 
-            // 3. Check if Email is Verified
-            if (!$user->hasVerifiedEmail()) {
-                JWTAuth::invalidate($token); // Kill the token immediately
+            // Check if Email is Verified
 
-                // Optional: You could add a button on frontend to hit the /resend api here
-                return $this->errorResponse('Your email is not verified. Please verify your email first.', 403);
-            }
-
-            // 4. Login Successful
+            // Login Successful
             $data = [
                 'token' => $token,
                 'user' => $this->formatUser($user),
