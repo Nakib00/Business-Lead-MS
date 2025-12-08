@@ -60,6 +60,8 @@ class AuthController extends Controller
                 'is_subscribe' => 0,
             ]);
 
+            event(new \Illuminate\Auth\Events\Registered($user));
+
             $token = JWTAuth::fromUser($user);
 
             $data = [
@@ -88,6 +90,10 @@ class AuthController extends Controller
 
         if ($user->is_suspended) {
             return $this->errorResponse('Your account is suspended. Please contact support.', 403);
+        }
+
+        if (!$user->hasVerifiedEmail()) {
+            return $this->errorResponse('Email not verified. Please verify your email.', 403);
         }
 
         $data = [
