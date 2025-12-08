@@ -30,13 +30,12 @@ class CustomVerifyEmail extends Notification
         $verificationUrl = $this->verificationUrl($notifiable);
 
         return (new MailMessage)
-            ->subject('Welcome to DeskLago! Verify Your Email') // Custom Subject
-            ->greeting('Hello ' . $notifiable->name . '!') // Personalized Greeting
-            ->line('Welcome to DeskLago. We are excited to have you on board.')
-            ->line('Please click the button below to verify your email address and activate your account.')
-            ->action('Verify Email Address', $verificationUrl) // The Button
-            ->line('If you did not create an account, no further action is required.')
-            ->salutation('Best Regards, The DeskLago Team');
+            ->from('info@hub.desklago.com', 'Hub.desklago')
+            ->subject('Welcome to Hub.desklago! Verify Your Email')
+            ->view('emails.verify', [
+                'verificationUrl' => $verificationUrl,
+                'user' => $notifiable
+            ]);
     }
 
     // Helper to generate the URL with ID and Hash
