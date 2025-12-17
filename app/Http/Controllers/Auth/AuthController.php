@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Permission;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
@@ -60,6 +61,9 @@ class AuthController extends Controller
                 'reg_user_id' => $request->reg_user_id ?? null,
                 'is_subscribe' => 0,
             ]);
+
+            // Assign permissions based on user type
+            $this->assignDefaultPermissions($user);
 
             // 4. Trigger Email Verification Event
             // This sends the standard Laravel verification email
@@ -254,7 +258,8 @@ class AuthController extends Controller
             // Verify the parent user exists, will throw an exception if not found
             User::findOrFail($userId);
 
-            $query = User::where('reg_user_id', $userId);
+            $query = User::where('reg_user_id', $userId)
+                ->whereIn('type', ['leader', 'member', 'client']);
 
             // Search by name or email
             if ($search = $request->input('search')) {
@@ -672,6 +677,39 @@ class AuthController extends Controller
             return $this->errorResponse('Validation error', $e->errors(), 422);
         } catch (\Exception $e) {
             return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
+        }
+    }
+
+    private function assignDefaultPermissions($user)
+    {
+        $permissions = [];
+
+        if ($user->type === 'leader') {
+            $permissions = [
+                'form' => ['post', 'get', 'put', 'delete'],
+                'lead_submission' => ['post', 'get', 'put', 'delete'],
+                'project' => ['post', 'get', 'put'],
+                'task' => ['post', 'get', 'put'],
+                'user' => ['get', 'delete', 'post'],
+            ];
+        } elseif ($user->type === 'member') {
+            $permissions = [
+                'lead_submission' => ['get', 'put', 'post'],
+                'project' => ['get', 'put'],
+                'task' => ['get', 'put'],
+                'user' => ['get'],
+            ];
+        }
+
+        foreach ($permissions as $feature => $methods) {
+            foreach (array_unique($methods) as $method) {
+                Permission::create([
+                    'user_id' => $user->id,
+                    'feature' => $feature,
+                    'api_method' => $method,
+                    'status' => true, // Assuming string 'true' based on user request "status:true", but usually boolean. Migration likely bool or string. User request: status:true
+                ]);
+            }
         }
     }
 }
