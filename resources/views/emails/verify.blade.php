@@ -105,7 +105,7 @@
             </div>
 
             <div class="button-container">
-                <a href="{{ $verificationUrl }}" class="button" target="_blank">Verify Email Address</a>
+                <a href="{{ $verificationUrl }}" class="button" target="_blank" style="color: #ffffff;">Verify Email Address</a>
             </div>
 
             <div class="message" style="margin-bottom: 0;">
