@@ -168,10 +168,43 @@ class AuthController extends Controller
             $status = filter_var($permission->status, FILTER_VALIDATE_BOOLEAN);
 
             if ($permission->feature && $permission->api_method) {
-                $permissions[$permission->feature][$permission->api_method] = $status;
+                $permissions[$permission->feature][$permission->api_method] = [
+                    'id' => $permission->id,
+                    'status' => $status
+                ];
             }
         }
         return $permissions;
+    }
+
+    public function updatePermission(Request $request, $id)
+    {
+        try {
+            $permission = Permission::findOrFail($id);
+
+            // Validate the status input
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->errorResponse('Validation error', $validator->errors()->first(), 422);
+            }
+
+            $permission->status = $request->input('status');
+            $permission->save();
+
+            return $this->successResponse([
+                'id' => $permission->id,
+                'feature' => $permission->feature,
+                'api_method' => $permission->api_method,
+                'status' => (bool)$permission->status
+            ], 'Permission updated successfully', 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Permission not found', 404);
+        } catch (Exception $e) {
+            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
+        }
     }
 
     private function formatUser($user)

@@ -28,6 +28,7 @@ Route::middleware('auth:api')->group(function () {
         Route::put('/profile/update/{userId}', [AuthController::class, 'updateProfile']);
         Route::post('/profile-image/{userId}', [AuthController::class, 'updateProfileImage']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
+        Route::put('/permissions/{id}', [AuthController::class, 'updatePermission']);
         Route::get('/{id}', [AuthController::class, 'show']);
     });
 });
