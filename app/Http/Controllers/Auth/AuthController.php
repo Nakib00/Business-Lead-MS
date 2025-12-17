@@ -109,15 +109,7 @@ class AuthController extends Controller
             }
 
             // 6. Login Successful
-            $permissions = [];
-            foreach ($user->permissions as $permission) {
-                // Convert status to boolean
-                $status = filter_var($permission->status, FILTER_VALIDATE_BOOLEAN);
-
-                if ($permission->feature && $permission->api_method) {
-                    $permissions[$permission->feature][$permission->api_method] = $status;
-                }
-            }
+            $permissions = $this->getFormattedPermissions($user);
 
             $data = [
                 'token' => $token,
@@ -133,6 +125,51 @@ class AuthController extends Controller
             return $this->errorResponse('Login failed', 'An error occurred during login.', 500);
         }
     }
+    public function show($id)
+    {
+        try {
+            $user = User::findOrFail($id);
+            $permissions = $this->getFormattedPermissions($user);
+
+            $data = $this->formatUser($user);
+            // formatUser returns an array, so we can just merge or add the key.
+            // But formatUser filters specific fields. The user request showed a response with MANY fields (created_at, updated_at etc) that formatUser might not include.
+            // Let's check formatUser implementation.
+            // It returns specific fields.
+            // The user request example shows: id, name, email, email_verified_at, phone, address, is_suspended, profile_image, type, created_at, updated_at, reg_user_id, is_subscribe, job_title, department, date_of_birth, hire_date, team, bio, timezone, status, profile_image_url.
+
+            // formatUser returns: id, name, email, phone, address, type, profile_image, is_subscribe, is_suspended.
+            // It seems the user wants the FULL set of attributes plus profile_image_url plus permissions.
+
+            // So I should probably just return $user->toArray() merged with profile_image_url (which is an append) and permissions.
+
+            // $user->load('permissions'); // if I want to eager load, but accessing relationship does it.
+
+            $userData = $user->toArray();
+            $userData['permissions'] = $permissions;
+
+            return $this->successResponse($userData, 'User details retrieved successfully', 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('User not found', 404);
+        } catch (Exception $e) {
+            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
+        }
+    }
+
+    private function getFormattedPermissions($user)
+    {
+        $permissions = [];
+        foreach ($user->permissions as $permission) {
+            // Convert status to boolean
+            $status = filter_var($permission->status, FILTER_VALIDATE_BOOLEAN);
+
+            if ($permission->feature && $permission->api_method) {
+                $permissions[$permission->feature][$permission->api_method] = $status;
+            }
+        }
+        return $permissions;
+    }
+
     private function formatUser($user)
     {
         return [
