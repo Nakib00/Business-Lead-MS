@@ -17,16 +17,12 @@ class PermissionController extends Controller
         try {
             $permission = Permission::findOrFail($permissionId);
 
-            // Validate the status input
-            $validator = Validator::make($request->all(), [
-                'status' => 'required|boolean',
-            ]);
+            // Toggle the status
+            // Assuming status is stored in a way that allows boolean toggling (tinyint 0/1 or similar)
+            // Explicitly casting to bool for safety before toggling if it's a string 'true'/'false'
+            $currentStatus = filter_var($permission->status, FILTER_VALIDATE_BOOLEAN);
+            $permission->status = !$currentStatus;
 
-            if ($validator->fails()) {
-                return $this->errorResponse('Validation error', $validator->errors()->first(), 422);
-            }
-
-            $permission->status = $request->input('status');
             $permission->save();
 
             return $this->successResponse([
