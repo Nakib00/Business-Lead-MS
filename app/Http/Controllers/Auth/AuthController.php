@@ -109,9 +109,20 @@ class AuthController extends Controller
             }
 
             // 6. Login Successful
+            $permissions = [];
+            foreach ($user->permissions as $permission) {
+                // Convert status to boolean
+                $status = filter_var($permission->status, FILTER_VALIDATE_BOOLEAN);
+
+                if ($permission->feature && $permission->api_method) {
+                    $permissions[$permission->feature][$permission->api_method] = $status;
+                }
+            }
+
             $data = [
                 'token' => $token,
                 'user' => $this->formatUser($user),
+                'permissions' => $permissions,
                 'token_type' => 'bearer',
                 'expires_in' => JWTAuth::factory()->getTTL() * 60
             ];
