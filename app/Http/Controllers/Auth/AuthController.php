@@ -177,10 +177,10 @@ class AuthController extends Controller
         return $permissions;
     }
 
-    public function updatePermission(Request $request, $id)
+    public function updatePermission(Request $request, $permissionId)
     {
         try {
-            $permission = Permission::findOrFail($id);
+            $permission = Permission::findOrFail($permissionId);
 
             // Validate the status input
             $validator = Validator::make($request->all(), [
