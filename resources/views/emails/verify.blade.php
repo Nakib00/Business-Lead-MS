@@ -8,7 +8,7 @@
     <style>
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            background-color: #f4f7fa;
+            background-color: #ffffff;
             color: #333333;
             margin: 0;
             padding: 0;
@@ -18,103 +18,185 @@
         .container {
             max-width: 600px;
             margin: 0 auto;
-            padding: 40px 20px;
-        }
-
-        .header {
+            padding: 20px;
             text-align: center;
-            margin-bottom: 30px;
         }
 
-        .header h1 {
-            color: #2b3445;
+        .logo {
+            margin-bottom: 20px;
+        }
+
+        .logo img {
+            height: 50px;
+            /* Adjust as needed */
+            width: auto;
+        }
+
+        .headline {
             font-size: 24px;
-            margin: 0;
+            font-weight: bold;
+            color: #000000;
+            margin-bottom: 10px;
+        }
+
+        .subheadline {
+            font-size: 16px;
+            color: #666666;
+            margin-bottom: 30px;
         }
 
         .content {
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 40px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            text-align: left;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333333;
         }
 
         .greeting {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #2b3445;
+            font-weight: bold;
+            margin-bottom: 15px;
         }
 
-        .message {
-            font-size: 16px;
-            line-height: 1.6;
-            color: #555555;
-            margin-bottom: 30px;
+        .user-email-box {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+
+        .user-email-box strong {
+            color: #000000;
+        }
+
+        .email-tooltip {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: middle;
         }
 
         .button-container {
             text-align: center;
-            margin-bottom: 30px;
+            margin: 30px 0;
         }
 
         .button {
             display: inline-block;
-            background-color: #000000;
-            color: #ffffff;
+            background-color: #C0FD49;
+            color: #3A3E32;
             text-decoration: none;
-            padding: 14px 30px;
-            border-radius: 6px;
+            padding: 15px 40px;
+            border-radius: 8px;
             font-weight: bold;
             font-size: 16px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: background-color 0.3s ease;
         }
 
-        .button:hover {
-            background-color: #333333;
+        .expiry-note {
+            text-align: center;
+            font-size: 14px;
+            color: #666666;
+            margin-top: 15px;
+        }
+
+        .fallback-link-box {
+            background-color: #F5F6F4;
+            padding: 15px;
+            border-radius: 8px;
+            word-break: break-all;
+            margin-top: 20px;
+            color: #80C002;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        .fallback-link-box a {
+            color: #80C002;
+            text-decoration: none;
         }
 
         .footer {
+            margin-top: 40px;
+            font-size: 14px;
+            color: #666666;
+            text-align: left;
+        }
+
+        .footer-links {
+            color: #80C002;
+            text-decoration: none;
+        }
+
+        .bottom-footer {
             text-align: center;
-            margin-top: 30px;
+            margin-top: 40px;
             font-size: 12px;
             color: #999999;
         }
 
-        .footer a {
-            color: #999999;
-            text-decoration: underline;
+        .back-link {
+            text-decoration: none;
+            color: #666666;
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <div class="header">
-            <!-- You can replace this title with an <img> tag for your logo -->
-            <h1>Hub.desklago</h1>
+        <div class="logo">
+            <!-- Placeholder for blade asset -->
+            <img src="{{ asset('DesklaGo Hub.svg') }}" alt="DesklaGo Hub">
         </div>
+
+        <div class="headline">Confirm your email to activate your account</div>
+        <div class="subheadline">This helps us keep your DesklaGo Hub account secure.</div>
 
         <div class="content">
             <div class="greeting">Hello {{ $user->name }},</div>
 
-            <div class="message">
-                Welcome to <strong>Hub.desklago</strong>! We are excited to have you on board.<br><br>
-                Please verify your email address to unlock full access to your account and start your journey with us.
+            <p>Welcome to <strong>DesklaGo Hub</strong> 👋<br>
+                We're excited to have you on board.</p>
+
+            <p>To activate your account and get full access, please verify your email address by clicking the button below:</p>
+
+            <div class="user-email-box">
+                You're verifying: <strong>{{ $user->email }}</strong>
+                <!-- Note: The tooltip black box in the design seems to be a UI hint, likely not part of the email content itself, but I will simulate the visual if needed or ignore if it's just a cursor hover state in the screenshot. The user asked to "convert the design", the black box looks like a hover state or a specific UI element. I'll omit the black box 'Securely confirm your email' as it looks like a tooltip from the interaction in the screenshot, not part of the static email. -->
             </div>
 
             <div class="button-container">
-                <a href="{{ $verificationUrl }}" class="button" target="_blank" style="color: #ffffff;">Verify Email Address</a>
+                <a href="{{ $verificationUrl }}" class="button" target="_blank">Verify email address</a>
+                <div class="expiry-note">This verification link will expire in <strong>24 hours</strong> for security reasons.</div>
             </div>
 
-            <div class="message" style="margin-bottom: 0;">
-                If you did not create an account, no further action is required.
+            <p>If the button doesn't work, copy and paste this link into your browser:</p>
+
+            <div class="fallback-link-box">
+                <a href="{{ $verificationUrl }}">{{ $verificationUrl }}</a>
+            </div>
+
+            <div class="footer">
+                <p>Didn't sign up for DesklaGo Hub?<br>
+                    You can safely ignore this email — no action is required.</p>
+
+                <p>Need help? Contact us at<br>
+                    <a href="mailto:support@hub.desklago.com" class="footer-links">support@hub.desklago.com</a>
+                </p>
+
+                <p>Thanks,<br>
+                    <strong>The DesklaGo Hub Team</strong>
+                </p>
             </div>
         </div>
 
-        <div class="footer">
-            &copy; {{ date('Y') }} Hub.desklago. All rights reserved.<br>
+        <div class="bottom-footer">
+            <a href="#" class="back-link">← Back to DesklaGo Hub</a><br>
+            &copy; 2025 DesklaGo Hub. Privacy • Terms • Contact
         </div>
     </div>
 </body>
