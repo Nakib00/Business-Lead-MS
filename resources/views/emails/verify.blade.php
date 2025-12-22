@@ -149,8 +149,8 @@
 <body>
     <div class="container">
         <div class="logo">
-            <!-- Logo updated to absolute URL as requested -->
-            <img src="https://hubbackend.desklago.com/storage/app/public/DesklaGo%20Hub.svg" alt="DesklaGo Hub">
+            <!-- Logo expects file at public/DesklaGo-Hub.svg -->
+            <img src="{{ asset('DesklaGo-Hub.svg') }}" alt="DesklaGo Hub">
         </div>
 
         <div class="headline">Confirm your email to activate your account</div>
