@@ -691,29 +691,65 @@ class AuthController extends Controller
 
         if ($user->type === 'leader') {
             $permissions = [
-                'form' => ['post', 'get', 'put', 'delete'],
-                'lead_submission' => ['post', 'get', 'put', 'delete'],
-                'project' => ['post', 'get', 'put'],
-                'task' => ['post', 'get', 'put'],
-                'user' => ['get', 'delete', 'post'],
+                // True status permissions
+                'true' => [
+                    'form' => ['post', 'get', 'put', 'delete'],
+                    'lead_submission' => ['post', 'get', 'put', 'delete'],
+                    'project' => ['post', 'get', 'put'],
+                    'task' => ['post', 'get', 'put'],
+                    'user' => ['get', 'delete', 'post'],
+                ],
+                // False status permissions
+                'false' => [
+                    'project' => ['delete'],
+                    'task' => ['delete'],
+                    'user' => ['put'],
+                ]
             ];
         } elseif ($user->type === 'member') {
             $permissions = [
-                'lead_submission' => ['get', 'put', 'post'],
-                'project' => ['get', 'put'],
-                'task' => ['get', 'put'],
-                'user' => ['get'],
+                // True status permissions
+                'true' => [
+                    'lead_submission' => ['get', 'put', 'post'],
+                    'project' => ['get', 'put'],
+                    'task' => ['get', 'put'],
+                    'user' => ['get'],
+                ],
+                // False status permissions
+                'false' => [
+                    'lead_submission' => ['delete'],
+                    'project' => ['post', 'delete'],
+                    'task' => ['post', 'delete'],
+                    'user' => ['put', 'post', 'delete'],
+                ]
             ];
         }
 
-        foreach ($permissions as $feature => $methods) {
-            foreach (array_unique($methods) as $method) {
-                Permission::create([
-                    'user_id' => $user->id,
-                    'feature' => $feature,
-                    'api_method' => $method,
-                    'status' => true, // Assuming string 'true' based on user request "status:true", but usually boolean. Migration likely bool or string. User request: status:true
-                ]);
+        // Process 'true' permissions
+        if (isset($permissions['true'])) {
+            foreach ($permissions['true'] as $feature => $methods) {
+                foreach (array_unique($methods) as $method) {
+                    Permission::create([
+                        'user_id' => $user->id,
+                        'feature' => $feature,
+                        'api_method' => $method,
+                        'status' => true,
+                    ]);
+                }
+            }
+        }
+
+        // Process 'false' permissions
+        if (isset($permissions['false'])) {
+            foreach ($permissions['false'] as $feature => $methods) {
+                foreach (array_unique($methods) as $method) {
+                    Permission::create([
+                        'user_id' => $user->id,
+                        'feature' => $feature,
+                        'api_method' => $method,
+                        'status' => false,
+                    ]);
+                }
             }
         }
     }
