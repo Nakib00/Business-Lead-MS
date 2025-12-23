@@ -21,56 +21,60 @@ class DashboardController extends Controller
             return $this->unauthorizedResponse('Unauthorized');
         }
 
-        // Projects Query - Consolidated
-        $projectCounts = $user->projects()
+        // Projects Aggregation
+        $projAgg = $user->projects()
             ->selectRaw('
                 count(*) as total,
-                COALESCE(sum(case when status = 0 then 1 else 0 end), 0) as pending,
-                COALESCE(sum(case when status = 1 then 1 else 0 end), 0) as active,
-                COALESCE(sum(case when status = 2 then 1 else 0 end), 0) as completed,
-                COALESCE(sum(case when status = 3 then 1 else 0 end), 0) as on_hold,
-                COALESCE(sum(case when status = 1 then progress else 0 end), 0) as active_progress_total,
-                COALESCE(avg(case when status = 1 then progress else null end), 0) as active_progress_average
+                count(case when status = 0 then 1 end) as pending,
+                count(case when status = 1 then 1 end) as active,
+                count(case when status = 2 then 1 end) as completed,
+                count(case when status = 3 then 1 end) as on_hold,
+                sum(case when status = 1 then progress else 0 end) as active_progress_total,
+                avg(case when status = 1 then progress else null end) as active_progress_avg
             ')
             ->first();
 
-        // Tasks Query - Consolidated
-        $taskCounts = $user->tasks()
-            ->selectRaw('
-                count(*) as total,
-                COALESCE(sum(case when status = 0 then 1 else 0 end), 0) as pending,
-                COALESCE(sum(case when status = 1 then 1 else 0 end), 0) as in_progress,
-                COALESCE(sum(case when status = 2 then 1 else 0 end), 0) as done,
-                COALESCE(sum(case when status = 3 then 1 else 0 end), 0) as blocked
-            ')
-            ->first();
+        // Projects Recent
+        $recentProjects = $user->projects()->orderBy('created_at', 'desc')->take(5)->get();
 
         $projectStats = [
-            'total' => $projectCounts->total,
+            'total' => (int) ($projAgg->total ?? 0),
             'counts' => [
-                'pending'   => $projectCounts->pending,
-                'active'    => $projectCounts->active,
-                'completed' => $projectCounts->completed,
-                'on_hold'   => $projectCounts->on_hold,
+                'pending'   => (int) ($projAgg->pending ?? 0),
+                'active'    => (int) ($projAgg->active ?? 0),
+                'completed' => (int) ($projAgg->completed ?? 0),
+                'on_hold'   => (int) ($projAgg->on_hold ?? 0),
             ],
             'active_progress' => [
-                'total'   => $projectCounts->active_progress_total,
-                'average' => $projectCounts->active_progress_average,
+                'total'   => (float) ($projAgg->active_progress_total ?? 0),
+                'average' => (float) ($projAgg->active_progress_avg ?? 0),
             ],
-            // Retaining separate query for recent items as it requires ordering and limiting
-            'recent' => $user->projects()->orderBy('created_at', 'desc')->take(5)->get(),
+            'recent' => $recentProjects,
         ];
 
+        // Tasks Aggregation
+        $taskAgg = $user->tasks()
+            ->selectRaw('
+                count(*) as total,
+                count(case when status = 0 then 1 end) as pending,
+                count(case when status = 1 then 1 end) as in_progress,
+                count(case when status = 2 then 1 end) as done,
+                count(case when status = 3 then 1 end) as blocked
+            ')
+            ->first();
+
+        // Tasks Recent
+        $recentTasks = $user->tasks()->orderBy('created_at', 'desc')->take(5)->get();
+
         $taskStats = [
-            'total' => $taskCounts->total,
+            'total' => (int) ($taskAgg->total ?? 0),
             'counts' => [
-                'pending'     => $taskCounts->pending,
-                'in_progress' => $taskCounts->in_progress,
-                'done'        => $taskCounts->done,
-                'blocked'     => $taskCounts->blocked,
+                'pending'     => (int) ($taskAgg->pending ?? 0),
+                'in_progress' => (int) ($taskAgg->in_progress ?? 0),
+                'done'        => (int) ($taskAgg->done ?? 0),
+                'blocked'     => (int) ($taskAgg->blocked ?? 0),
             ],
-            // Retaining separate query for recent items
-            'recent' => $user->tasks()->orderBy('created_at', 'desc')->take(5)->get(),
+            'recent' => $recentTasks,
         ];
 
         return $this->successResponse([
