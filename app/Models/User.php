@@ -180,20 +180,21 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmailContrac
         static::created(function ($user) {
             // Only register user_id in these tables.
             // Other columns will use DB defaults / null.
+            // Optimization: Use create() instead of firstOrCreate() since we know this is a NEW user (created event)
 
-            \App\Models\UserEmergencyContact::firstOrCreate([
+            \App\Models\UserEmergencyContact::create([
                 'user_id' => $user->id,
             ]);
 
-            \App\Models\SecuritySetting::firstOrCreate([
+            \App\Models\SecuritySetting::create([
                 'user_id' => $user->id,
             ]);
 
-            \App\Models\Prefernce::firstOrCreate([
+            \App\Models\Prefernce::create([
                 'user_id' => $user->id,
             ]);
 
-            \App\Models\Display::firstOrCreate([
+            \App\Models\Display::create([
                 'user_id' => $user->id,
             ]);
         });

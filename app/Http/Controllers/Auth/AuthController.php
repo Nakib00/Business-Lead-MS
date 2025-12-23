@@ -18,6 +18,7 @@ use App\Models\UserEmergencyContact;
 use App\Models\SecuritySetting;
 use App\Models\Prefernce;
 use App\Models\Display;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -88,8 +89,8 @@ class AuthController extends Controller
         try {
             $credentials = $request->only('email', 'password');
 
-            // 1. Retrieve the user by email first
-            $user = User::where('email', $request->email)->first();
+            // 1. Retrieve the user by email first (eager load permissions)
+            $user = User::with('permissions')->where('email', $request->email)->first();
 
             // 2. Check if user exists and password is correct
             if (!$user || !Hash::check($request->password, $user->password)) {
@@ -687,11 +688,13 @@ class AuthController extends Controller
 
     private function assignDefaultPermissions($user)
     {
-        $permissions = [];
+        $permissionsToInsert = [];
+        $now = now(); // Timestamp for created_at and updated_at
+
+        $permissionsConfig = [];
 
         if ($user->type === 'leader') {
-            $permissions = [
-                // True status permissions
+            $permissionsConfig = [
                 'true' => [
                     'form' => ['post', 'get', 'put', 'delete'],
                     'lead_submission' => ['post', 'get', 'put', 'delete'],
@@ -699,7 +702,6 @@ class AuthController extends Controller
                     'task' => ['post', 'get', 'put'],
                     'user' => ['get', 'delete', 'post'],
                 ],
-                // False status permissions
                 'false' => [
                     'project' => ['delete'],
                     'task' => ['delete'],
@@ -707,15 +709,13 @@ class AuthController extends Controller
                 ]
             ];
         } elseif ($user->type === 'member') {
-            $permissions = [
-                // True status permissions
+            $permissionsConfig = [
                 'true' => [
                     'lead_submission' => ['get', 'put', 'post'],
                     'project' => ['get', 'put'],
                     'task' => ['get', 'put'],
                     'user' => ['get'],
                 ],
-                // False status permissions
                 'false' => [
                     'lead_submission' => ['delete'],
                     'project' => ['post', 'delete'],
@@ -725,32 +725,26 @@ class AuthController extends Controller
             ];
         }
 
-        // Process 'true' permissions
-        if (isset($permissions['true'])) {
-            foreach ($permissions['true'] as $feature => $methods) {
+        // Prepare data for batch insert
+        foreach ($permissionsConfig as $statusString => $features) {
+            $statusBool = ($statusString === 'true');
+            foreach ($features as $feature => $methods) {
                 foreach (array_unique($methods) as $method) {
-                    Permission::create([
+                    $permissionsToInsert[] = [
                         'user_id' => $user->id,
                         'feature' => $feature,
                         'api_method' => $method,
-                        'status' => true,
-                    ]);
+                        'status' => $statusBool,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
                 }
             }
         }
 
-        // Process 'false' permissions
-        if (isset($permissions['false'])) {
-            foreach ($permissions['false'] as $feature => $methods) {
-                foreach (array_unique($methods) as $method) {
-                    Permission::create([
-                        'user_id' => $user->id,
-                        'feature' => $feature,
-                        'api_method' => $method,
-                        'status' => false,
-                    ]);
-                }
-            }
+        // Single Batch Insert
+        if (!empty($permissionsToInsert)) {
+            Permission::insert($permissionsToInsert);
         }
     }
 }
