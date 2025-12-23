@@ -21,33 +21,55 @@ class DashboardController extends Controller
             return $this->unauthorizedResponse('Unauthorized');
         }
 
-        // Projects Query - relating to the user
-        $projectsQuery = $user->projects();
+        // Projects Query - Consolidated
+        $projectCounts = $user->projects()
+            ->selectRaw('
+                count(*) as total,
+                COALESCE(sum(case when status = 0 then 1 else 0 end), 0) as pending,
+                COALESCE(sum(case when status = 1 then 1 else 0 end), 0) as active,
+                COALESCE(sum(case when status = 2 then 1 else 0 end), 0) as completed,
+                COALESCE(sum(case when status = 3 then 1 else 0 end), 0) as on_hold,
+                COALESCE(sum(case when status = 1 then progress else 0 end), 0) as active_progress_total,
+                COALESCE(avg(case when status = 1 then progress else null end), 0) as active_progress_average
+            ')
+            ->first();
+
+        // Tasks Query - Consolidated
+        $taskCounts = $user->tasks()
+            ->selectRaw('
+                count(*) as total,
+                COALESCE(sum(case when status = 0 then 1 else 0 end), 0) as pending,
+                COALESCE(sum(case when status = 1 then 1 else 0 end), 0) as in_progress,
+                COALESCE(sum(case when status = 2 then 1 else 0 end), 0) as done,
+                COALESCE(sum(case when status = 3 then 1 else 0 end), 0) as blocked
+            ')
+            ->first();
 
         $projectStats = [
-            'total' => $projectsQuery->count(),
+            'total' => $projectCounts->total,
             'counts' => [
-                'pending'   => $user->projects()->where('status', 0)->count(),
-                'active'    => $user->projects()->where('status', 1)->count(),
-                'completed' => $user->projects()->where('status', 2)->count(),
-                'on_hold'   => $user->projects()->where('status', 3)->count(),
+                'pending'   => $projectCounts->pending,
+                'active'    => $projectCounts->active,
+                'completed' => $projectCounts->completed,
+                'on_hold'   => $projectCounts->on_hold,
             ],
             'active_progress' => [
-                'total'   => $user->projects()->where('status', 1)->sum('progress'),
-                'average' => $user->projects()->where('status', 1)->avg('progress') ?? 0,
+                'total'   => $projectCounts->active_progress_total,
+                'average' => $projectCounts->active_progress_average,
             ],
+            // Retaining separate query for recent items as it requires ordering and limiting
             'recent' => $user->projects()->orderBy('created_at', 'desc')->take(5)->get(),
         ];
 
-        // Tasks Query - relating to the user
         $taskStats = [
-            'total' => $user->tasks()->count(),
+            'total' => $taskCounts->total,
             'counts' => [
-                'pending'     => $user->tasks()->where('status', 0)->count(),
-                'in_progress' => $user->tasks()->where('status', 1)->count(),
-                'done'        => $user->tasks()->where('status', 2)->count(),
-                'blocked'     => $user->tasks()->where('status', 3)->count(),
+                'pending'     => $taskCounts->pending,
+                'in_progress' => $taskCounts->in_progress,
+                'done'        => $taskCounts->done,
+                'blocked'     => $taskCounts->blocked,
             ],
+            // Retaining separate query for recent items
             'recent' => $user->tasks()->orderBy('created_at', 'desc')->take(5)->get(),
         ];
 
