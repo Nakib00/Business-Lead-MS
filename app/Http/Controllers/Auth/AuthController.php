@@ -121,7 +121,7 @@ class AuthController extends Controller
                 'user' => $this->formatUser($user),
                 'permissions' => $permissions,
                 'token_type' => 'bearer',
-                'expires_in' => JWTAuth::factory()->getTTL() * 60
+                'expires_in' => JWTAuth::factory()->getTTL() * 86400
             ];
 
             return $this->successResponse($data, 'Login successful', 200);
