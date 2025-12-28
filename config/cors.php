@@ -11,11 +11,13 @@ return [
         'http://localhost:5173'
     ],
 
+    'allowed_origins_patterns' => [],
+
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    'exposed_headers' => ['Authorization'],
 
-    'max_age' => 0,
+    'max_age' => 86400, // Cache preflight for 24 hours
 
     'supports_credentials' => true,
 ];
