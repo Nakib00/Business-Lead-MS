@@ -18,6 +18,7 @@ use App\Models\UserEmergencyContact;
 use App\Models\SecuritySetting;
 use App\Models\Prefernce;
 use App\Models\Display;
+use App\Models\UserSocialMideaLink;
 use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
@@ -378,7 +379,8 @@ class AuthController extends Controller
                 'emergencyContact',
                 'securitySetting',
                 'preference',
-                'display'
+                'display',
+                'socialMediaLink'
             ]);
 
             $data = [
@@ -418,6 +420,15 @@ class AuthController extends Controller
                 'display' => [
                     'language'          => $user->display->language ?? null,
                     'theme'             => $user->display->theme ?? null,
+                ],
+
+                'social_media_link' => [
+                    'linkedin_link' => $user->socialMediaLink->linkedin_link ?? null,
+                    'twitter_link' => $user->socialMediaLink->twitter_link ?? null,
+                    'github_link' => $user->socialMediaLink->github_link ?? null,
+                    'dribbble_link' => $user->socialMediaLink->dribbble_link ?? null,
+                    'behance_link' => $user->socialMediaLink->behance_link ?? null,
+                    'personal_website_link' => $user->socialMediaLink->personal_website_link ?? null,
                 ],
             ];
 
@@ -479,6 +490,14 @@ class AuthController extends Controller
                 // Display (optional)
                 'display.language' => 'nullable|string|max:10',
                 'display.theme'    => 'nullable|string|max:50',
+
+                // Social Media Links (optional)
+                'social_media_link.linkedin_link' => 'nullable|string|url|max:255',
+                'social_media_link.twitter_link' => 'nullable|string|url|max:255',
+                'social_media_link.github_link' => 'nullable|string|url|max:255',
+                'social_media_link.dribbble_link' => 'nullable|string|url|max:255',
+                'social_media_link.behance_link' => 'nullable|string|url|max:255',
+                'social_media_link.personal_website_link' => 'nullable|string|url|max:255',
             ]);
 
             // 1) Update main user fields
@@ -556,8 +575,26 @@ class AuthController extends Controller
                 $display->save();
             }
 
+            // Social Media Link
+            $socialData = $request->input('social_media_link', []);
+            if (is_array($socialData) && !empty(array_filter($socialData, fn($v) => $v !== null && $v !== ''))) {
+                $social = \App\Models\UserSocialMideaLink::firstOrCreate([
+                    'user_id' => $user->id,
+                ]);
+
+                $social->fill([
+                    'linkedin_link' => $socialData['linkedin_link'] ?? $social->linkedin_link,
+                    'twitter_link' => $socialData['twitter_link'] ?? $social->twitter_link,
+                    'github_link' => $socialData['github_link'] ?? $social->github_link,
+                    'dribbble_link' => $socialData['dribbble_link'] ?? $social->dribbble_link,
+                    'behance_link' => $socialData['behance_link'] ?? $social->behance_link,
+                    'personal_website_link' => $socialData['personal_website_link'] ?? $social->personal_website_link,
+                ]);
+                $social->save();
+            }
+
             // Reload relations for response
-            $user->load(['emergencyContact', 'securitySetting', 'preference', 'display']);
+            $user->load(['emergencyContact', 'securitySetting', 'preference', 'display', 'socialMediaLink']);
 
             return $this->successResponse([
                 'id'            => $user->id,
@@ -593,6 +630,14 @@ class AuthController extends Controller
                 'display' => [
                     'language' => $user->display->language ?? null,
                     'theme'    => $user->display->theme ?? null,
+                ],
+                'social_media_link' => [
+                    'linkedin_link' => $user->socialMediaLink->linkedin_link ?? null,
+                    'twitter_link' => $user->socialMediaLink->twitter_link ?? null,
+                    'github_link' => $user->socialMediaLink->github_link ?? null,
+                    'dribbble_link' => $user->socialMediaLink->dribbble_link ?? null,
+                    'behance_link' => $user->socialMediaLink->behance_link ?? null,
+                    'personal_website_link' => $user->socialMediaLink->personal_website_link ?? null,
                 ],
             ], 'Profile updated successfully', 200);
         } catch (\Illuminate\Validation\ValidationException $e) {

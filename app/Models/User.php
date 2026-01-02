@@ -164,6 +164,11 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmailContrac
         return $this->hasOne(Display::class);
     }
 
+    public function socialMediaLink()
+    {
+        return $this->hasOne(UserSocialMideaLink::class);
+    }
+
     public function permissions()
     {
         return $this->hasMany(Permission::class);
