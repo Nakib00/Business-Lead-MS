@@ -747,4 +747,34 @@ class AuthController extends Controller
             Permission::insert($permissionsToInsert);
         }
     }
+    // get all clients for admin
+    public function getClients(Request $request, $adminId)
+    {
+        try {
+            // Verify the admin (parent user) exists
+            User::findOrFail($adminId);
+
+            $query = User::where('reg_user_id', $adminId)
+                ->where('type', 'client');
+
+            // Optional: Search by name, email, or phone
+            if ($search = $request->input('search')) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%$search%")
+                        ->orWhere('email', 'like', "%$search%")
+                        ->orWhere('phone', 'like', "%$search%");
+                });
+            }
+
+            // Pagination
+            $perPage = $request->input('limit', 10);
+            $users = $query->paginate($perPage);
+
+            return $this->paginatedResponse($users->items(), $users, 'Client users retrieved successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->errorResponse('Admin user not found', 404);
+        } catch (Exception $e) {
+            return $this->errorResponse('An error occurred while fetching client users.', 500);
+        }
+    }
 }
