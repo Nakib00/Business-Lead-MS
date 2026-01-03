@@ -58,9 +58,9 @@ class FormController extends Controller
         try {
             $forms = Form::with('fields')->whereNotNull('super_admin_id')->get();
             $data = $forms;
-            return $this->successResponse($data, 'Forms retrieved successfully');
+            return $this->successResponse($data, 'Forms template retrieved successfully');
         } catch (\Exception $e) {
-            return $this->serverErrorResponse('Failed to retrieve forms', $e->getMessage());
+            return $this->serverErrorResponse('Failed to retrieve forms template', $e->getMessage());
         }
     }
 
