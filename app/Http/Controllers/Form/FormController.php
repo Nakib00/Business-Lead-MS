@@ -18,12 +18,13 @@ class FormController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'admin_id' => 'required|integer',
-            'created_by' => 'required|integer',
+            'admin_id' => 'nullable|integer',
+            'super_admin_id' => 'nullable|integer',
+            'created_by' => 'nullable|integer',
             'fields' => 'required|array'
         ]);
 
-        $form = Form::create($request->only(['title', 'description', 'admin_id', 'created_by']));
+        $form = Form::create($request->only(['title', 'description', 'admin_id', 'super_admin_id', 'created_by']));
 
         foreach ($request->fields as $index => $field) {
             FormField::create([
@@ -45,6 +46,17 @@ class FormController extends Controller
     {
         try {
             $forms = Form::with('fields')->get();
+            $data = $forms;
+            return $this->successResponse($data, 'Forms retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->serverErrorResponse('Failed to retrieve forms', $e->getMessage());
+        }
+    }
+
+    public function getTemplateForms()
+    {
+        try {
+            $forms = Form::with('fields')->whereNotNull('super_admin_id')->get();
             $data = $forms;
             return $this->successResponse($data, 'Forms retrieved successfully');
         } catch (\Exception $e) {

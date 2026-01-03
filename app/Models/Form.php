@@ -9,7 +9,7 @@ class Form extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['title', 'description', 'admin_id', 'created_by'];
+    protected $fillable = ['title', 'description', 'admin_id', 'super_admin_id', 'created_by'];
 
     public function fields()
     {

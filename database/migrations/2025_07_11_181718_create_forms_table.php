@@ -15,8 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->text('description')->nullable();
-            $table->unsignedBigInteger('admin_id');
-            $table->unsignedBigInteger('created_by');
+            $table->unsignedBigInteger('admin_id')->nullable();
+            $table->unsignedBigInteger('super_admin_id')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
         });
     }

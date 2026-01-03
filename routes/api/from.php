@@ -7,11 +7,12 @@ use App\Http\Controllers\Form\{FormController, FormSubmissionController};
 Route::prefix('forms')->group(function () {
     Route::post('/', [FormController::class, 'createForm']);
     Route::get('/', [FormController::class, 'getAllForms']);
+    Route::get('/template', [FormController::class, 'getTemplateForms']);
     Route::put('/{formId}', [FormController::class, 'updateForm']);
     Route::get('/{formId}', [FormController::class, 'getFormById']);
     Route::get('/admin/{adminId}', [FormController::class, 'getFormsByAdmin']);
     Route::post('/fields/{formid}', [FormController::class, 'addField']);
-    Route::delete('/{fromid}',[FormController::class, 'destroy']);
+    Route::delete('/{fromid}', [FormController::class, 'destroy']);
     Route::delete('/{fromID}/fields/{fieldID}', [FormController::class, 'destroyField']);
 });
 
