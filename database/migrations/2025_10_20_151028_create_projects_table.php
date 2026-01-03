@@ -16,6 +16,8 @@ return new class extends Migration
 
             // Core fields
             $table->string('project_code')->unique();                 // your "create project id" (human/uuid-like code)
+            $table->integer('admin_id');
+            $table->integer('client_id')->nullable();
             $table->string('project_name');
             $table->string('client_name');
             $table->text('project_description')->nullable();

@@ -40,6 +40,7 @@ class ProjectController extends Controller
                 'project_thumbnail'   => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
 
                 // <-- key part for arrays
+                'client_id'           => ['nullable', 'integer', 'exists:users,id'],
                 'user_ids'            => ['nullable', 'array'],
                 'user_ids.*'          => ['integer', 'exists:users,id'],
             ]);
@@ -67,6 +68,7 @@ class ProjectController extends Controller
                     'due_date'            => $validated['due_date'] ?? null,
 
                     'admin_id'            => $adminId,
+                    'client_id'           => $validated['client_id'] ?? null,
 
                     // Save FULL URL/path (Storage::url)
                     'project_thumbnail'   => $thumbnailFullUrl,
@@ -199,12 +201,14 @@ class ProjectController extends Controller
                 'due_date',
                 'status',
                 'progress',
+                'client_id',
             ]);
 
             // Validate only provided fields (all are optional / "sometimes")
             $validated = validator($input, [
                 'project_name'        => ['sometimes', 'string', 'max:255'],
                 'client_name'         => ['sometimes', 'string', 'max:255'],
+                'client_id'           => ['sometimes', 'integer', 'exists:users,id'],
                 'project_description' => ['sometimes', 'nullable', 'string'],
                 'category'            => ['sometimes', 'nullable', 'string', 'max:255'],
                 'priority'            => ['sometimes', Rule::in(['low', 'medium', 'high'])],

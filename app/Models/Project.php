@@ -23,7 +23,8 @@ class Project extends Model
         'status',
         'progress',
         'project_thumbnail',
-        'admin_id'
+        'admin_id',
+        'client_id'
     ];
     protected $casts = [
         'due_date' => 'date',
