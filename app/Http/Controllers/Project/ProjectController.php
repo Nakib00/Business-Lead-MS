@@ -31,7 +31,7 @@ class ProjectController extends Controller
             // Validate
             $validated = $request->validate([
                 'project_name'        => ['required', 'string', 'max:255'],
-                'client_name'         => ['required', 'string', 'max:255'],
+                'client_name'         => ['nullable', 'string', 'max:255'],
                 'project_description' => ['nullable', 'string'],
                 'category'            => ['nullable', 'string', 'max:255'],
                 'priority'            => ['required', Rule::in(['low', 'medium', 'high'])],

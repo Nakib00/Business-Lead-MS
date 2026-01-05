@@ -19,7 +19,7 @@ return new class extends Migration
             $table->integer('admin_id');
             $table->integer('client_id')->nullable();
             $table->string('project_name');
-            $table->string('client_name');
+            $table->string('client_name')->nullable();
             $table->text('project_description')->nullable();
             $table->string('category')->nullable();                   // e.g. "web,crm,internal"
             $table->enum('priority', ['low', 'medium', 'high'])->default('low');
