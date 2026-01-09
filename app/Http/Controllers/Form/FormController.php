@@ -31,6 +31,7 @@ class FormController extends Controller
                 'form_id' => $form->id,
                 'field_type' => $field['type'],
                 'label' => $field['label'],
+                'tooltip' => $field['tooltip'] ?? null,
                 'is_required' => $field['required'] ?? false,
                 'options' => isset($field['options']) ? json_encode($field['options']) : null,
                 'field_order' => $index
@@ -128,6 +129,7 @@ class FormController extends Controller
         $request->validate([
             'field_type' => 'required|string|max:50',
             'label' => 'required|string|max:255',
+            'tooltip' => 'nullable|string|max:255',
             'is_required' => 'boolean',
             'options' => 'nullable|array',
             'field_order' => 'nullable|integer',
@@ -140,6 +142,7 @@ class FormController extends Controller
                 'form_id' => $form->id,
                 'field_type' => $request->field_type,
                 'label' => $request->label,
+                'tooltip' => $request->tooltip ?? null,
                 'is_required' => $request->is_required ?? false,
                 'options' => $request->options ? json_encode($request->options) : null,
                 'field_order' => $request->field_order ?? $form->fields()->count(),
@@ -177,6 +180,7 @@ class FormController extends Controller
                         'form_id'     => $form->id,
                         'field_type'  => $fieldData['type'],
                         'label'       => $fieldData['label'],
+                        'tooltip'     => $fieldData['tooltip'] ?? null,
                         'is_required' => $fieldData['required'] ?? false,
                         'options'     => isset($fieldData['options']) ? json_encode($fieldData['options']) : null,
                         'field_order' => $fieldData['field_order'] ?? $index,
@@ -190,6 +194,7 @@ class FormController extends Controller
                         $field->update([
                             'field_type'  => $fieldData['type'],
                             'label'       => $fieldData['label'],
+                            'tooltip'     => $fieldData['tooltip'] ?? null,
                             'is_required' => $fieldData['required'] ?? false,
                             'options'     => isset($fieldData['options']) ? json_encode($fieldData['options']) : null,
                             'field_order' => $fieldData['field_order'] ?? $index,
