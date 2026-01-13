@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('form_id')->constrained()->onDelete('cascade');
             $table->string('field_type'); // input, textarea, file, image, etc
             $table->string('label');
-            $table->string('tooltip')->nullable();
+            $table->string('toolTip')->nullable();
             $table->boolean('is_required')->default(false);
             $table->json('options')->nullable();
             $table->integer('field_order')->default(0);
