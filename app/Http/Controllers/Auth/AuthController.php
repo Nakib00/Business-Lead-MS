@@ -265,8 +265,10 @@ class AuthController extends Controller
             // Verify the parent user exists, will throw an exception if not found
             User::findOrFail($userId);
 
-            $query = User::where('reg_user_id', $userId)
+            $query = User::with('socialMediaLink')
+                ->where('reg_user_id', $userId)
                 ->whereIn('type', ['leader', 'member', 'client']);
+
 
             // Search by name or email
             if ($search = $request->input('search')) {

@@ -51,7 +51,9 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmailContrac
     protected $hidden = [
         'password',
         'remember_token',
+        'profile_image',
     ];
+
 
     /**
      * The attributes that should be cast.
@@ -126,15 +128,15 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmailContrac
      */
     public function getProfileImageUrlAttribute()
     {
-        $val = $this->attributes['profile_image'] ?? null;
+        $path = $this->attributes['profile_image'] ?? null;
 
-        if (!$val) {
+        if (!$path) {
             return asset('images/placeholders/user.png');
         }
 
-        // Build the custom path you want
-        return env('APP_URL') . '/storage/app/public/' . $val;
+        return config('app.url') . '/storage/app/public/' . ltrim($path, '/');
     }
+
 
 
     /*
