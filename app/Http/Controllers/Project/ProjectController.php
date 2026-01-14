@@ -1,11 +1,6 @@
 <?php
 
 namespace App\Http\Requests\Project;
-
-// Placeholder to ensure namespace exists if unused in this file directly, 
-// strictly speaking not needed but good for clarity if we were importing all.
-// Real imports below.
-
 namespace App\Http\Controllers\Project;
 
 use App\Http\Controllers\Controller;
@@ -298,7 +293,9 @@ class ProjectController extends Controller
                         return [
                             'id'                 => $u->id,
                             'name'               => $u->name,
-                            'profile_image_url'  => $u->profile_image_url,
+                            'profile_image_url'  => filter_var($u->profile_image, FILTER_VALIDATE_URL)
+                                ? $u->profile_image
+                                : $u->profile_image_url,
                         ];
                     })->values(),
                 ];
@@ -344,7 +341,9 @@ class ProjectController extends Controller
                 return [
                     'id'                => $u->id,
                     'name'              => $u->name,
-                    'profile_image_url' => $u->profile_image_url,
+                    'profile_image_url' => filter_var($u->profile_image, FILTER_VALIDATE_URL)
+                        ? $u->profile_image
+                        : $u->profile_image_url,
                 ];
             })->values()->all();
 
@@ -353,7 +352,9 @@ class ProjectController extends Controller
                     return [
                         'id'                => $u->id,
                         'name'              => $u->name,
-                        'profile_image_url' => $u->profile_image_url,
+                        'profile_image_url' => filter_var($u->profile_image, FILTER_VALIDATE_URL)
+                            ? $u->profile_image
+                            : $u->profile_image_url,
                     ];
                 })->values()->all();
 

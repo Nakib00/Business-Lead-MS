@@ -131,7 +131,9 @@ class AuthController extends Controller
                 'email'         => $user->email,
                 'phone'         => $user->phone,
                 'address'       => $user->address,
-                'profile_image_url' => $user->profile_image_url,
+                'profile_image_url' => filter_var($user->profile_image, FILTER_VALIDATE_URL)
+                    ? $user->profile_image
+                    : $user->profile_image_url,
                 'type'          => $user->type,
                 'reg_user_id'   => $user->reg_user_id,
                 'is_subscribe'  => $user->is_subscribe,

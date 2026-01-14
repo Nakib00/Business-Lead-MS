@@ -406,7 +406,9 @@ class UserController extends Controller
                 'id'                => $user->id,
                 'name'              => $user->name,
                 'email'             => $user->email,
-                'profile_image_url' => $user->profile_image_url,
+                'profile_image_url' => filter_var($user->profile_image, FILTER_VALIDATE_URL)
+                    ? $user->profile_image
+                    : $user->profile_image_url,
             ], 'Profile image updated successfully', 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse('Validation error', $e->errors(), 422);
