@@ -141,7 +141,13 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmailContrac
             return asset('images/placeholders/user.png');
         }
 
-        return config('app.url') . '/storage/app/public/' . ltrim($path, '/');
+        // If it's already a full URL, return it
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return $path;
+        }
+
+        // Otherwise generate storage URL
+        return Storage::url($path);
     }
 
 
