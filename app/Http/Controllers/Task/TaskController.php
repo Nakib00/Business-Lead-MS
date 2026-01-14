@@ -266,7 +266,9 @@ class TaskController extends Controller
                         return [
                             'id'                => $u->id,
                             'name'              => $u->name,
-                            'profile_image_url' => $u->profile_image_url,
+                            'profile_image_url' => filter_var($u->profile_image, FILTER_VALIDATE_URL)
+                                ? $u->profile_image
+                                : $u->profile_image_url,
                         ];
                     })->values()->all(),
                 ];
@@ -303,7 +305,9 @@ class TaskController extends Controller
                 return [
                     'id'                => $u->id,
                     'name'              => $u->name,
-                    'profile_image_url' => $u->profile_image_url,
+                    'profile_image_url' => filter_var($u->profile_image, FILTER_VALIDATE_URL)
+                        ? $u->profile_image
+                        : $u->profile_image_url,
                 ];
             })->values()->all();
 
