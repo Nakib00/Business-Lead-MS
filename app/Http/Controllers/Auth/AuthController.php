@@ -28,7 +28,6 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         try {
-            // 1. Validation
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users',
@@ -44,17 +43,15 @@ class AuthController extends Controller
                 return $this->errorResponse('Validation error', $validator->errors()->first(), 422);
             }
 
-            // 2. Delegate to Service
             $user = $this->registrationService->registerUser($request->except('profile_image'), $request->file('profile_image'));
 
-            // 3. Response (NO TOKEN)
             return $this->successResponse(
                 $this->formatUser($user),
                 'Registration successful. Please check your email to verify your account.',
                 201
             );
         } catch (Exception $e) {
-            \Log::error('Register Error: ' . $e->getMessage());
+            Log::error('Register Error: ' . $e->getMessage());
             return $this->errorResponse('Registration failed', 'Something went wrong during registration.', 500);
         }
     }
@@ -65,31 +62,23 @@ class AuthController extends Controller
         try {
             $credentials = $request->only('email', 'password');
 
-            // 1. Retrieve the user by email first (eager load permissions)
             $user = User::with('permissions')->where('email', $request->email)->first();
 
-            // 2. Check if user exists and password is correct
             if (!$user || !Hash::check($request->password, $user->password)) {
                 return $this->errorResponse('Invalid email or password.', null, 401);
             }
 
-            // 3. Check if Suspended (Do this BEFORE generating token)
             if ($user->is_suspended) {
                 return $this->errorResponse('Your account is suspended. Please contact support.', null, 403);
             }
 
-            // 4. Check if Email is Verified (Do this BEFORE generating token)
             if ($user->email_verified_at === null) {
-                // No token to invalidate because we haven't created one yet
                 return $this->errorResponse('Your email is not verified. Please verify your email first.', null, 403);
             }
 
-            // 5. Generate Token (Now that we know the user is valid)
             if (!$token = JWTAuth::fromUser($user)) {
                 return $this->errorResponse('Could not create token.', null, 500);
             }
-
-            // 6. Login Successful
             $permissions = $this->getFormattedPermissions($user);
 
             $data = [
@@ -102,7 +91,7 @@ class AuthController extends Controller
 
             return $this->successResponse($data, 'Login successful', 200);
         } catch (\Exception $e) {
-            \Log::error('Login Error: ' . $e->getMessage());
+            Log::error('Login Error: ' . $e->getMessage());
             return $this->errorResponse('Login failed', 'An error occurred during login.', 500);
         }
     }
