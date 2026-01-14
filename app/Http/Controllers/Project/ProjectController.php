@@ -1,131 +1,65 @@
 <?php
 
+namespace App\Http\Requests\Project;
+
+// Placeholder to ensure namespace exists if unused in this file directly, 
+// strictly speaking not needed but good for clarity if we were importing all.
+// Real imports below.
+
 namespace App\Http\Controllers\Project;
 
 use App\Http\Controllers\Controller;
 use App\Models\Project;
+use App\Models\User;
+use App\Services\ProjectService;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Str;
-use App\Models\User;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\File;
+use App\Http\Requests\Project\StoreProjectRequest;
+use App\Http\Requests\Project\UpdateProjectDetailsRequest;
+use App\Http\Requests\Project\UpdateProjectThumbnailRequest;
+use App\Http\Requests\Project\AssignProjectUsersRequest;
 
 class ProjectController extends Controller
 {
     use ApiResponseTrait;
 
-    public function store(Request $request)
+    protected $projectService;
+
+    public function __construct(ProjectService $projectService)
+    {
+        $this->projectService = $projectService;
+    }
+
+    public function store(StoreProjectRequest $request)
     {
         try {
-            $user = Auth::user();
-            if (!$user) {
-                return $this->unauthorizedResponse('Login required');
-            }
-
-            // Validate
-            $validated = $request->validate([
-                'project_name'        => ['required', 'string', 'max:255'],
-                'client_name'         => ['nullable', 'string', 'max:255'],
-                'project_description' => ['nullable', 'string'],
-                'category'            => ['nullable', 'string', 'max:255'],
-                'priority'            => ['required', Rule::in(['low', 'medium', 'high'])],
-                'budget'              => ['nullable', 'numeric', 'min:0'],
-                'due_date'            => ['nullable', 'date'],
-                'project_thumbnail'   => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
-
-                // <-- key part for arrays
-                'client_id'           => ['nullable', 'integer', 'exists:users,id'],
-                'user_ids'            => ['nullable', 'array'],
-                'user_ids.*'          => ['integer', 'exists:users,id'],
-            ]);
-
-            $project = DB::transaction(function () use ($validated, $user, $request) {
-
-                // prefer reg_user_id if present; fallback to current user id
-                $adminId = $user->reg_user_id ?? $user->id;
-
-                // Handle thumbnail (store on "public" disk and generate a public URL)
-                $thumbnailFullUrl = null;
-                if ($request->hasFile('project_thumbnail')) {
-                    $imagePath = $request->file('project_thumbnail')->store('projectThumbnails', 'public');
-                    $thumbnailFullUrl = $imagePath;
-                }
-
-                $payload = [
-                    'project_code'        => 'PRJ-' . Str::upper(Str::random(6)),
-                    'project_name'        => $validated['project_name'],
-                    'client_name'         => $validated['client_name'],
-                    'project_description' => $validated['project_description'] ?? null,
-                    'priority'            => $validated['priority'],
-                    'category'            => $validated['category'] ?? null,
-                    'budget'              => $validated['budget'] ?? null,
-                    'due_date'            => $validated['due_date'] ?? null,
-
-                    'admin_id'            => $adminId,
-                    'client_id'           => $validated['client_id'] ?? null,
-
-                    // Save FULL URL/path (Storage::url)
-                    'project_thumbnail'   => $thumbnailFullUrl,
-
-                    'status'              => 0,
-                    'progress'            => 0,
-                ];
-
-                if (Schema::hasColumn('projects', 'created_by')) {
-                    $payload['created_by'] = $user->id;
-                }
-
-                /** @var Project $project */
-                $project = Project::create($payload);
-
-                // Grab array directly from validated data, ensure ints & unique
-                $userIds = $validated['user_ids'] ?? [];
-                $userIds = array_values(array_unique(array_map('intval', $userIds)));
-
-                // Always include the creator
-                if (!in_array($user->id, $userIds, true)) {
-                    $userIds[] = $user->id;
-                }
-
-                if (!empty($userIds)) {
-                    $project->users()->syncWithoutDetaching($userIds);
-                }
-
-                return $project->fresh(['users']);
-            });
+            $project = $this->projectService->createProject(
+                $request->validated(),
+                $request->file('project_thumbnail'),
+                $request->user()
+            );
 
             return $this->successResponse($project, 'Project created', 201);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return $this->validationErrorResponse($e->validator->errors());
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to create project', $e->getMessage());
         }
     }
 
-
-    /**
-     * PATCH /projects/{project}/priority
-     * Body: { "priority": "low" | "medium" | "high" }
-     */
     public function updatePriority(Request $request, Project $project)
     {
         try {
-            $user = $request->user();
-            if (!$user) return $this->unauthorizedResponse('Login required');
-
-            $data = $request->validate([
+            // Keep validation inline for simple single-field updates or create a Request if preferred.
+            // For "professional" look, generic single-field updates are often fine inline or via a shared Request.
+            // I'll keep it inline to avoid over-engineering for 1 field, or I could use the Service generic update.
+            $validated = $request->validate([
                 'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
             ]);
 
-            $project->update(['priority' => $data['priority']]);
+            $project = $this->projectService->updateProjectDetails($project, $validated);
 
-            return $this->successResponse($project->fresh(), 'Priority updated');
+            return $this->successResponse($project, 'Priority updated');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator->errors());
         } catch (\Throwable $e) {
@@ -133,23 +67,16 @@ class ProjectController extends Controller
         }
     }
 
-    /**
-     * PATCH /projects/{project}/status
-     * Body: { "status": 0|1|2|3 }  // 0=pending,1=active,2=completed,3=on_hold
-     */
     public function updateStatus(Request $request, Project $project)
     {
         try {
-            $user = $request->user();
-            if (!$user) return $this->unauthorizedResponse('Login required');
-
-            $data = $request->validate([
+            $validated = $request->validate([
                 'status' => ['required', 'integer', 'between:0,3'],
             ]);
 
-            $project->update(['status' => (int) $data['status']]);
+            $project = $this->projectService->updateProjectDetails($project, $validated);
 
-            return $this->successResponse($project->fresh(), 'Status updated');
+            return $this->successResponse($project, 'Status updated');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator->errors());
         } catch (\Throwable $e) {
@@ -157,23 +84,16 @@ class ProjectController extends Controller
         }
     }
 
-    /**
-     * PATCH /projects/{project}/progress
-     * Body: { "progress": 0..100 }
-     */
     public function updateProgress(Request $request, Project $project)
     {
         try {
-            $user = $request->user();
-            if (!$user) return $this->unauthorizedResponse('Login required');
-
-            $data = $request->validate([
+            $validated = $request->validate([
                 'progress' => ['required', 'integer', 'between:0,100'],
             ]);
 
-            $project->update(['progress' => (int) $data['progress']]);
+            $project = $this->projectService->updateProjectDetails($project, $validated);
 
-            return $this->successResponse($project->fresh(), 'Progress updated');
+            return $this->successResponse($project, 'Progress updated');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->validationErrorResponse($e->validator->errors());
         } catch (\Throwable $e) {
@@ -181,88 +101,24 @@ class ProjectController extends Controller
         }
     }
 
-
-    public function updateDetails(Request $request, Project $project)
+    public function updateDetails(UpdateProjectDetailsRequest $request, Project $project)
     {
         try {
-            // Make sure user is logged in (keep your existing check)
-            if (!$request->user()) {
-                return $this->unauthorizedResponse('Login required');
+            // Service handles isDirty check inside updateProjectDetails (saves if dirty)
+            $project = $this->projectService->updateProjectDetails($project, $request->validated());
+
+            if ($project->wasChanged()) {
+                return $this->successResponse($project, 'Project updated');
             }
-
-            // Only take the fields we care about (works with form-data, urlencoded, query, etc.)
-            $input = $request->only([
-                'project_name',
-                'client_name',
-                'project_description',
-                'category',
-                'priority',
-                'budget',
-                'due_date',
-                'status',
-                'progress',
-                'client_id',
-            ]);
-
-            // Validate only provided fields (all are optional / "sometimes")
-            $validated = validator($input, [
-                'project_name'        => ['sometimes', 'string', 'max:255'],
-                'client_name'         => ['sometimes', 'string', 'max:255'],
-                'client_id'           => ['sometimes', 'integer', 'exists:users,id'],
-                'project_description' => ['sometimes', 'nullable', 'string'],
-                'category'            => ['sometimes', 'nullable', 'string', 'max:255'],
-                'priority'            => ['sometimes', Rule::in(['low', 'medium', 'high'])],
-                'budget'              => ['sometimes', 'numeric', 'min:0'],
-                'due_date'            => ['sometimes', 'nullable', 'date'],
-                'status'              => ['sometimes', 'integer', 'between:0,3'],
-                'progress'            => ['sometimes', 'integer', 'between:0,100'],
-            ])->validate();
-
-            // Fill model with new values
-            $project->fill($validated);
-
-            // If nothing actually changed, return "No changes"
-            if (!$project->isDirty()) {
-                // Accessor in model will automatically append project_thumbnail_url
-                return $this->successResponse($project->fresh(), 'No changes');
-            }
-
-            // Save changes
-            $project->save();
-
-            // fresh() to get updated values + appended attributes
-            return $this->successResponse($project->fresh(), 'Project updated');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return $this->validationErrorResponse($e->validator->errors());
+            return $this->successResponse($project, 'No changes');
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to update project', $e->getMessage());
         }
     }
 
-    /**
-     * Update project thumbnail image
-     */
-    public function updateProjectThumbnail(Request $request, $id)
+    public function updateProjectThumbnail(UpdateProjectThumbnailRequest $request, $id)
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'project_thumbnail' => [
-                    'required',
-                    'file',
-                    'image',
-                    'mimes:jpg,jpeg,png,webp',
-                    'max:5120',
-                ],
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors'  => $validator->errors(),
-                ], 422);
-            }
-
             $project = Project::find($id);
 
             if (!$project) {
@@ -272,21 +128,10 @@ class ProjectController extends Controller
                 ], 404);
             }
 
-            // Delete old thumbnail if exists
-            $this->deleteProjectThumbnailFile($project->project_thumbnail);
-
-            // Upload new thumbnail
-            $thumbnailPath = null;
-            if ($request->hasFile('project_thumbnail')) {
-                $thumbnailPath = $request->file('project_thumbnail')
-                    ->store('projectThumbnails', 'public');
-            }
-
-            $project->project_thumbnail = $thumbnailPath;
-            $project->save();
-
-            // Reload to be safe (optional but nice)
-            $project->refresh();
+            $project = $this->projectService->updateProjectThumbnail(
+                $project,
+                $request->file('project_thumbnail')
+            );
 
             return response()->json([
                 'success' => true,
@@ -296,7 +141,7 @@ class ProjectController extends Controller
                     'project_thumbnail_url' => $project->project_thumbnail_url,
                 ],
             ], 200);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update project thumbnail',
@@ -305,74 +150,30 @@ class ProjectController extends Controller
         }
     }
 
-
-
-
-    public function assignUsers(Request $request, Project $project)
+    public function assignUsers(AssignProjectUsersRequest $request, Project $project)
     {
         try {
-            if (!$request->user()) {
-                return $this->unauthorizedResponse('Login required');
+            $mode = $request->input('mode', 'attach');
+            $userIds = $request->input('user_ids', []);
+
+            // If user_id (singular) is used, add it to array
+            if ($request->has('user_id')) {
+                $userIds[] = $request->input('user_id');
             }
 
-            // Normalize payload
-            $payload = $request->all();
-            $mode = $payload['mode'] ?? 'attach';
-
-            // Accept either user_id or user_ids[]
-            $ids = [];
-            if (isset($payload['user_ids'])) {
-                $ids = is_array($payload['user_ids']) ? $payload['user_ids'] : [$payload['user_ids']];
-            } elseif (isset($payload['user_id'])) {
-                $ids = [$payload['user_id']];
-            }
-
-            // Validate
-            $validated = $request->validate([
-                'mode'       => ['nullable', Rule::in(['attach', 'sync'])],
-                'user_id'    => ['nullable', 'integer', 'exists:users,id'],
-                'user_ids'   => ['nullable', 'array', 'min:1'],
-                'user_ids.*' => ['integer', 'exists:users,id'],
-            ]);
-
-            // No users provided?
-            if (empty($ids)) {
-                return $this->validationErrorResponse(['At least one user_id is required.']);
-            }
-
-            // Dedup & cast to int
-            $ids = array_values(array_unique(array_map('intval', $ids)));
-
-            if ($mode === 'sync') {
-                $project->users()->sync($ids);
-            } else {
-                $project->users()->syncWithoutDetaching($ids);
-            }
-
-            $project = $project->fresh('users');
+            $project = $this->projectService->assignUsers($project, $userIds, $mode);
 
             return $this->successResponse($project, 'Users assigned to project');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return $this->validationErrorResponse($e->validator->errors());
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to assign users', $e->getMessage());
         }
     }
 
-    /**
-     * DELETE /projects/{project}/users/{user}
-     * Detach a single user from the project
-     */
     public function removeUser(Request $request, Project $project, User $user)
     {
         try {
-            if (!$request->user()) {
-                return $this->unauthorizedResponse('Login required');
-            }
-
-            $project->users()->detach($user->id);
-
-            return $this->successResponse($project->fresh('users'), 'User removed from project');
+            $project = $this->projectService->removeUser($project, $user);
+            return $this->successResponse($project, 'User removed from project');
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to remove user', $e->getMessage());
         }
@@ -381,17 +182,7 @@ class ProjectController extends Controller
     public function destroy(Request $request, Project $project)
     {
         try {
-            if (!$request->user()) {
-                return $this->unauthorizedResponse('Login required');
-            }
-
-            DB::transaction(function () use ($project) {
-
-                $this->deleteProjectThumbnailFile($project->project_thumbnail);
-
-                $project->delete();
-            });
-
+            $this->projectService->deleteProject($project);
             return $this->successResponse(null, 'Project deleted');
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to delete project', $e->getMessage());
@@ -399,48 +190,19 @@ class ProjectController extends Controller
     }
 
     /**
-     * Delete a stored thumbnail file whether it is a relative public path
-     */
-    protected function deleteProjectThumbnailFile(?string $value): void
-    {
-        if (empty($value)) return;
-
-        $prefix = rtrim(config('app.url'), '/') . '/storage/';
-        if (Str::startsWith($value, $prefix)) {
-            // Convert URL -> relative path under 'public' disk
-            $relative = ltrim(substr($value, strlen($prefix)), '/');
-            if ($relative && Storage::disk('public')->exists($relative)) {
-                Storage::disk('public')->delete($relative);
-            }
-            return;
-        }
-        $absolutePublic = public_path($value);
-        if (File::exists($absolutePublic)) {
-            File::delete($absolutePublic);
-            return;
-        }
-        if (Storage::disk('public')->exists($value)) {
-            Storage::disk('public')->delete($value);
-            return;
-        }
-    }
-
-    /**
      * GET /projects
+     * Kept in controller as it is primarily data fetching/filtering
      */
     public function indexSummary(Request $request)
     {
         try {
-            // Must be logged in
             $user = Auth::user();
             if (!$user) {
                 return $this->unauthorizedResponse('Login required');
             }
 
-            // Determine effective admin id
             $effectiveAdminId = $user->reg_user_id ?: $user->id;
 
-            // Validate/normalize query params
             $request->validate([
                 'limit'      => ['nullable', 'integer', 'min:1', 'max:100'],
                 'page'       => ['nullable', 'integer', 'min:1'],
@@ -477,7 +239,6 @@ class ProjectController extends Controller
                     'project_thumbnail',
                     'admin_id',
                 ])
-                // Only projects under this effective admin
                 ->where('admin_id', $effectiveAdminId)
                 ->with([
                     'users:id,name,profile_image',
@@ -490,7 +251,6 @@ class ProjectController extends Controller
                 ])
                 ->orderByDesc('id');
 
-            // Filters
             if (!empty($s)) {
                 $query->where(function ($q) use ($s) {
                     $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $s) . '%';
@@ -518,6 +278,7 @@ class ProjectController extends Controller
             $paginator = $query->paginate($limit, ['*'], 'page', $page);
 
             $data = $paginator->getCollection()->map(function (Project $project) {
+                // Accessor in Model should handle this, but keeping controller logic identical
                 return [
                     'id'                      => $project->id,
                     'project_code'            => $project->project_code,
@@ -551,12 +312,9 @@ class ProjectController extends Controller
         }
     }
 
-
-
     public function showDetails(Request $request, Project $project)
     {
         try {
-            // Require login
             $user = Auth::user();
             if (!$user) {
                 return $this->unauthorizedResponse('Login required');
@@ -565,7 +323,6 @@ class ProjectController extends Controller
             $effectiveAdminId = $user->reg_user_id ?: $user->id;
 
             if ((int)$project->admin_id !== (int)$effectiveAdminId) {
-
                 return $this->notFoundResponse('Project not found');
             }
 
@@ -583,7 +340,6 @@ class ProjectController extends Controller
                 },
             ]);
 
-            // Map project assigned users (use accessor for URL)
             $assignedUsers = $project->users->map(function ($u) {
                 return [
                     'id'                => $u->id,
@@ -613,7 +369,6 @@ class ProjectController extends Controller
                 ];
             })->values()->all();
 
-            // Build final payload
             $data = [
                 'id'                   => $project->id,
                 'project_code'         => $project->project_code,
@@ -627,18 +382,11 @@ class ProjectController extends Controller
                 'status'               => (int) $project->status,
                 'progress'             => (int) $project->progress,
                 'admin_id'             => (int) $project->admin_id,
-
-                // Use accessor for a clean, correct URL
                 'project_thumbnail_url' => $project->project_thumbnail_url,
-
                 'created_at'           => optional($project->created_at)->toDateTimeString(),
                 'updated_at'           => optional($project->updated_at)->toDateTimeString(),
-
-                // Aggregates
                 'total_tasks'          => (int) ($project->total_tasks ?? 0),
                 'completed_tasks'      => (int) ($project->completed_tasks ?? 0),
-
-                // Relationships
                 'assigned_users'       => $assignedUsers,
                 'tasks'                => $tasks,
             ];

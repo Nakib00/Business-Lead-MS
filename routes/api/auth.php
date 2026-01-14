@@ -19,8 +19,6 @@ Route::middleware('auth:api')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // AuthController - Current User Profile (keeping as is per request scope sort of, but technically user management)
-    // The user had 'profile' in AuthController.
     Route::get('/users/profile', [AuthController::class, 'profile']);
     Route::post('/users/change-password', [AuthController::class, 'changePassword']);
 
@@ -32,17 +30,9 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/clients/{userId}', [UserController::class, 'getClients']);
         Route::delete('/{userid}', [UserController::class, 'destroy']);
         Route::put('/toggle-subscribe/{userid}', [UserController::class, 'toggleSubscribe']);
-        // Route::get('/profile', [AuthController::class, 'profile']); // MOVED ABOVE to keep prefix valid if desired, or keep here.
-        // Wait, the original code had:
-        // Route::prefix('users')->group(function () {
-        // ...
-        // Route::get('/profile', [AuthController::class, 'profile']);
-
-        // I should keep the URL structure IDENTICAL.
 
         Route::put('/profile/update', [UserController::class, 'updateProfile']);
         Route::post('/profile-image', [UserController::class, 'updateProfileImage']);
-        // Route::post('/change-password', [AuthController::class, 'changePassword']); // MOVED ABOVE
         Route::get('/{id}', [UserController::class, 'show']);
         Route::put('/contact-info/{id}', [UserController::class, 'updateContactInfo']);
     });
