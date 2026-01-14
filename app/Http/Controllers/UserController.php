@@ -175,19 +175,13 @@ class UserController extends Controller
         }
     }
 
-    public function updateProfile(Request $request, $userId)
+    public function updateProfile(Request $request)
     {
         try {
-            $authUser = Auth::user();
-
-            if (!$authUser) {
-                return $this->errorResponse('Unauthorized. User not authenticated.', 401);
-            }
-
-            $user = User::find($userId);
+            $user = Auth::user();
 
             if (!$user) {
-                return $this->errorResponse('User not found.', 404);
+                return $this->errorResponse('Unauthorized. User not authenticated.', 401);
             }
 
             // Validate request
@@ -379,19 +373,13 @@ class UserController extends Controller
         }
     }
 
-    public function updateProfileImage(Request $request, $userId)
+    public function updateProfileImage(Request $request)
     {
         try {
-            $authUser = Auth::user();
-
-            if (!$authUser) {
-                return $this->errorResponse('Unauthorized. User not authenticated.', 401);
-            }
-
-            $user = User::find($userId);
+            $user = Auth::user();
 
             if (!$user) {
-                return $this->errorResponse('User not found.', 404);
+                return $this->errorResponse('Unauthorized. User not authenticated.', 401);
             }
 
             // Validate file

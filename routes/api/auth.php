@@ -40,8 +40,8 @@ Route::middleware('auth:api')->group(function () {
 
         // I should keep the URL structure IDENTICAL.
 
-        Route::put('/profile/update/{userId}', [UserController::class, 'updateProfile']);
-        Route::post('/profile-image/{userId}', [UserController::class, 'updateProfileImage']);
+        Route::put('/profile/update', [UserController::class, 'updateProfile']);
+        Route::post('/profile-image', [UserController::class, 'updateProfileImage']);
         // Route::post('/change-password', [AuthController::class, 'changePassword']); // MOVED ABOVE
         Route::get('/{id}', [UserController::class, 'show']);
     });
