@@ -480,4 +480,34 @@ class UserController extends Controller
         }
         return $permissions;
     }
+    public function updateContactInfo(Request $request, $id)
+    {
+        try {
+            $user = User::find($id);
+
+            if (!$user) {
+                return $this->errorResponse('User not found', 404);
+            }
+
+            // Validate
+            $validated = $request->validate([
+                'email' => 'nullable|email|unique:users,email,' . $user->id,
+                'phone' => 'nullable|string|max:20',
+            ]);
+
+            $user->email = $validated['email'];
+            $user->phone = $validated['phone'];
+            $user->save();
+
+            return $this->successResponse([
+                'id' => $user->id,
+                'email' => $user->email,
+                'phone' => $user->phone,
+            ], 'Contact info updated successfully', 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->errorResponse('Validation error', $e->errors(), 422);
+        } catch (Exception $e) {
+            return $this->errorResponse('Something went wrong: ' . $e->getMessage(), 500);
+        }
+    }
 }

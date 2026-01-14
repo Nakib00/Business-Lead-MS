@@ -44,5 +44,6 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/profile-image', [UserController::class, 'updateProfileImage']);
         // Route::post('/change-password', [AuthController::class, 'changePassword']); // MOVED ABOVE
         Route::get('/{id}', [UserController::class, 'show']);
+        Route::put('/contact-info/{id}', [UserController::class, 'updateContactInfo']);
     });
 });
