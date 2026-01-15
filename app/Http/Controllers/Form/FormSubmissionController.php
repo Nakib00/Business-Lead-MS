@@ -263,6 +263,23 @@ class FormSubmissionController extends Controller
         }
     }
 
+    // delete form submsion 
+    public function deleteSubmission($formId, $submissionId)
+    {
+        try {
+            $submission = FormSubmission::where('id', $submissionId)->where('form_id', $formId)->firstOrFail();
+
+            // The deleting event in the model will handle deleting related data
+            $submission->delete();
+
+            return $this->successResponse(null, 'Submission deleted successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->notFoundResponse('Submission not found for this form');
+        } catch (\Exception $e) {
+            return $this->serverErrorResponse('Failed to delete submission', $e->getMessage());
+        }
+    }
+
     // updateStatus method to update the status of a submission
     public function updateStatus(Request $request, $id)
     {
