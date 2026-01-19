@@ -341,9 +341,14 @@ class FormSubmissionController extends Controller
         // Submission data
         $submissionData = $submissions->map(function ($submission) {
             $dataItems = $submission->data->map(function ($data) {
+                $value = $data->value;
+                if ($data->value && in_array($data->field->field_type, ['file', 'image'])) {
+                    $value = 'https://hubbackend.desklago.com/storage/app/public/' . $data->value;
+                }
                 return [
-                    'field_id' => $data->field_id,
-                    'value'    => $data->value,
+                    'field_id'   => $data->field_id,
+                    'field_type' => $data->field->field_type,
+                    'value'      => $value,
                 ];
             });
 
@@ -389,6 +394,10 @@ class FormSubmissionController extends Controller
             'title' => $submission->form->title,
             'description' => $submission->form->description,
             'submissiondata' => $submission->data->map(function ($data) {
+                $value = $data->value;
+                if ($data->value && in_array($data->field->field_type, ['file', 'image'])) {
+                    $value = 'https://hubbackend.desklago.com/storage/app/public/' . $data->value;
+                }
                 return [
                     'id' => $data->id,
                     'submission_id' => $data->submission_id,
@@ -398,7 +407,7 @@ class FormSubmissionController extends Controller
                     'is_required' => $data->field->is_required,
                     'options' => $data->field->options,
                     'field_order' => $data->field->field_order,
-                    'value' => $data->value,
+                    'value' => $value,
                     'created_at' => $data->created_at->toIso8601String(),
                     'updated_at' => $data->updated_at->toIso8601String(),
                 ];
