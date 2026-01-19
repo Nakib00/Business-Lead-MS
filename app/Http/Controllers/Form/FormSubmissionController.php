@@ -180,6 +180,13 @@ class FormSubmissionController extends Controller
      * @param int $submissionId
      * @return \Illuminate\Http\JsonResponse
      */
+    /**
+     * Update an existing form submission.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param int $submissionId
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updateSubmission(Request $request, $submissionId)
     {
         try {
@@ -192,11 +199,20 @@ class FormSubmissionController extends Controller
             $rules = [];
             foreach ($submission->form->fields as $field) {
                 $key = 'field_' . $field->id;
-                $rule = $field->is_required ? 'required' : 'nullable';
+
+                // Check if data already exists for this field
+                $existingData = $submission->data->firstWhere('field_id', $field->id);
+                $hasExistingValue = $existingData && !empty($existingData->value);
 
                 if (in_array($field->field_type, ['file', 'image'])) {
-                    $rules[$key] = $rule . '|file';
+                    // If it's required BUT we already have a file, it shouldn't be required in the request.
+                    if ($field->is_required && !$hasExistingValue) {
+                        $rules[$key] = 'required|file';
+                    } else {
+                        $rules[$key] = 'nullable|file';
+                    }
                 } else {
+                    $rule = $field->is_required ? 'required' : 'nullable';
                     $rules[$key] = $rule . '|string';
                 }
             }
@@ -215,6 +231,9 @@ class FormSubmissionController extends Controller
                 $dataToUpdate = $submission->data->firstWhere('field_id', $field->id);
 
                 // Skip if the field wasn't submitted in the request
+                // For files: if not sent, we keep the old one (if any).
+                // For strings: if not sent, we assume no change (PUT/PATCH hybrid behavior) or null?
+                // Given the logic above, let's assume if it's not present, we skip.
                 if (!$request->has($inputKey) && !$request->hasFile($inputKey)) {
                     continue;
                 }
@@ -223,7 +242,9 @@ class FormSubmissionController extends Controller
                 if (in_array($field->field_type, ['file', 'image']) && $request->hasFile($inputKey)) {
                     // Best Practice: Delete the old file if it exists
                     if ($dataToUpdate && $dataToUpdate->value) {
-                        Storage::delete($dataToUpdate->value);
+                        if (Storage::exists($dataToUpdate->value)) {
+                            Storage::delete($dataToUpdate->value);
+                        }
                     }
 
                     // Store the new file and get its path
