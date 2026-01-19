@@ -19,30 +19,10 @@ class FormSubmissionController extends Controller
     /**
      * Retrieves all form submissions, grouped by form.
      */
-    /**
-     * Retrieves all form submissions, grouped by form.
-     */
     public function getAllSubmissions()
     {
         try {
-            $user = auth()->user();
-
-            if (!$user) {
-                return $this->unauthorizedResponse('User not authenticated');
-            }
-
-            // If the user has a subscription ID (is_subscribe), filter by that admin_id
-            // matches user table is_subscribe id with other table admin_id
-            $query = FormSubmission::with(['form', 'data.field']);
-
-            if ($user->is_subscribe && $user->is_subscribe != 0) {
-                $query->where('admin_id', $user->is_subscribe);
-            } else {
-                $query->where('admin_id', $user->id);
-            }
-
-            $submissions = $query->get();
-
+            $submissions = FormSubmission::with(['form', 'data.field'])->get();
             $formattedData = $this->formatAndGroupSubmissions($submissions);
             return $this->successResponse($formattedData, 'Submissions retrieved successfully');
         } catch (\Exception $e) {
