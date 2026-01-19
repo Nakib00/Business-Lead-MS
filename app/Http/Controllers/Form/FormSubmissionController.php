@@ -155,7 +155,7 @@ class FormSubmissionController extends Controller
             $inputKey = 'field_' . $field->id;
 
             if (in_array($field->field_type, ['file', 'image']) && $request->hasFile($inputKey)) {
-                $path = $request->file($inputKey)->store('FormFile');
+                $path = $request->file($inputKey)->store('FormFile', 'public');
                 SubmissionData::create([
                     'submission_id' => $submission->id,
                     'field_id' => $field->id,
@@ -248,7 +248,7 @@ class FormSubmissionController extends Controller
                     }
 
                     // Store the new file and get its path
-                    $path = $request->file($inputKey)->store('FormFile');
+                    $path = $request->file($inputKey)->store('FormFile', 'public');
                     $value = $path;
 
                     // Handle text-based input updates
