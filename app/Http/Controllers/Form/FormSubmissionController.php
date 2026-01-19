@@ -35,8 +35,10 @@ class FormSubmissionController extends Controller
             // matches user table is_subscribe id with other table admin_id
             $query = FormSubmission::with(['form', 'data.field']);
 
-            if ($user->is_subscribe) {
+            if ($user->is_subscribe && $user->is_subscribe != 0) {
                 $query->where('admin_id', $user->is_subscribe);
+            } else {
+                $query->where('admin_id', $user->id);
             }
 
             $submissions = $query->get();
