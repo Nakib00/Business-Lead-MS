@@ -71,8 +71,6 @@ class DashboardController extends Controller
         $totalFormTemplates = \App\Models\Form::whereNotNull('super_admin_id')->count();
         $totalProjects = \App\Models\Project::count();
         $totalSubmissions = \App\Models\FormSubmission::count();
-        $totalTasks = \App\Models\Task::count();
-
 
         return $this->successResponse([
             'overview' => [
@@ -80,7 +78,6 @@ class DashboardController extends Controller
                 'total_form_templates' => $totalFormTemplates,
                 'total_projects' => $totalProjects,
                 'total_submissions' => $totalSubmissions,
-                'total_tasks' => $totalTasks,
             ],
         ], 'Super Admin Dashboard stats retrieved successfully');
     }
