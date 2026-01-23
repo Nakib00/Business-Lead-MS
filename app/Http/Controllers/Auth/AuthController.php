@@ -85,9 +85,6 @@ class AuthController extends Controller
                 'token' => $token,
                 'user' => $this->formatUser($user),
                 'permissions' => $permissions,
-                'reg_user_id' => $user->reg_user_id,
-                'token_type' => 'bearer',
-                'expires_in' => JWTAuth::factory()->getTTL() * 86400
             ];
 
             return $this->successResponse($data, 'Login successful', 200);
@@ -249,6 +246,7 @@ class AuthController extends Controller
             'profile_image' => $user->profile_image,
             'is_subscribe' => $user->is_subscribe,
             'is_suspended' => $user->is_suspended,
+            'reg_user_id' => $user->reg_user_id,
         ];
     }
 }
