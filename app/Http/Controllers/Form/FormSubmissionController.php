@@ -115,8 +115,17 @@ class FormSubmissionController extends Controller
     }
 
 
-    public function submitForm(Request $request, $formId, $submitted_by, $adminid)
+    public function submitForm(Request $request, $formId)
     {
+        $user = Auth::user();
+        $submittedBy = $user->id;
+
+        if ($user->type === 'admin') {
+            $adminId = $user->id;
+        } else {
+            $adminId = $user->reg_user_id;
+        }
+
         // Find the form with fields or return 404
         $form = Form::with('fields')->find($formId);
         if (!$form) {
@@ -151,8 +160,8 @@ class FormSubmissionController extends Controller
         // Create the submission
         $submission = FormSubmission::create([
             'form_id' => $formId,
-            'submitted_by' => $submitted_by,
-            'admin_id' => $adminid
+            'submitted_by' => $submittedBy,
+            'admin_id' => $adminId
         ]);
 
         // Save the submission data
