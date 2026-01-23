@@ -18,7 +18,7 @@ Route::prefix('forms')->group(function () {
 
 
 
-Route::prefix('submissions')->group(function () {
+Route::prefix('submissions')->middleware('auth:api')->group(function () {
     Route::post('/forms/submit/{formId}', [FormSubmissionController::class, 'submitForm']);
     Route::put('/{submissionId}', [FormSubmissionController::class, 'updateSubmission']);
     Route::delete('/forms/{formId}/submission/{submissionId}', [FormSubmissionController::class, 'deleteSubmission']);
