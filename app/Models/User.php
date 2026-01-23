@@ -70,6 +70,7 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmailContrac
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password'          => 'hashed',
+        'is_suspended'      => 'integer',
     ];
 
     /**
