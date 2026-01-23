@@ -102,6 +102,7 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmailContrac
                 'phone'         => $this->phone,
                 'profile_image' => $this->profile_image,
                 'type'          => $this->type,
+                'reg_user_id'   => $this->reg_user_id,
             ],
         ];
     }
