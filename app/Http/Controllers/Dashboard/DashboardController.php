@@ -21,6 +21,13 @@ class DashboardController extends Controller
             return $this->unauthorizedResponse('Unauthorized');
         }
 
+        // Global Counts
+        $totalAdmins = \App\Models\User::where('type', 'admin')->count();
+        $totalFormTemplates = \App\Models\Form::whereNotNull('super_admin_id')->count();
+        $totalProjects = \App\Models\Project::count();
+        $totalSubmissions = \App\Models\FormSubmission::count();
+        $totalTasks = \App\Models\Task::count();
+
         // Projects Query - relating to the user
         $projectsQuery = $user->projects();
 
@@ -52,6 +59,13 @@ class DashboardController extends Controller
         ];
 
         return $this->successResponse([
+            'overview' => [
+                'total_admins' => $totalAdmins,
+                'total_form_templates' => $totalFormTemplates,
+                'total_projects' => $totalProjects,
+                'total_submissions' => $totalSubmissions,
+                'total_tasks' => $totalTasks,
+            ],
             'projects' => $projectStats,
             'tasks' => $taskStats,
         ], 'Dashboard stats retrieved successfully');

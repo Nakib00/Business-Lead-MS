@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Form\{FormController, FormSubmissionController};
 
 
-Route::prefix('forms')->group(function () {
+Route::prefix('forms')->middleware('auth:api')->group(function () {
     Route::post('/', [FormController::class, 'createForm']);
     Route::get('/', [FormController::class, 'getAllForms']);
     Route::get('/template', [FormController::class, 'getTemplateForms']);
