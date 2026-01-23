@@ -56,4 +56,32 @@ class DashboardController extends Controller
             'tasks' => $taskStats,
         ], 'Dashboard stats retrieved successfully');
     }
+    public function superAdminIndex()
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        // Ensure user is authenticated
+        if (!$user) {
+            return $this->unauthorizedResponse('Unauthorized');
+        }
+
+        // Global Counts
+        $totalAdmins = \App\Models\User::where('type', 'admin')->count();
+        $totalFormTemplates = \App\Models\Form::whereNotNull('super_admin_id')->count();
+        $totalProjects = \App\Models\Project::count();
+        $totalSubmissions = \App\Models\FormSubmission::count();
+        $totalTasks = \App\Models\Task::count();
+
+
+        return $this->successResponse([
+            'overview' => [
+                'total_admins' => $totalAdmins,
+                'total_form_templates' => $totalFormTemplates,
+                'total_projects' => $totalProjects,
+                'total_submissions' => $totalSubmissions,
+                'total_tasks' => $totalTasks,
+            ],
+        ], 'Super Admin Dashboard stats retrieved successfully');
+    }
 }
