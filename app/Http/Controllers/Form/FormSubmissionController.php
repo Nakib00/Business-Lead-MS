@@ -11,6 +11,7 @@ use App\Models\SubmissionData;
 use Illuminate\Support\Facades\Storage;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class FormSubmissionController extends Controller
 {
@@ -34,19 +35,23 @@ class FormSubmissionController extends Controller
     /**
      * Retrieves all submissions for a specific user, grouped by form.
      */
-    public function getSubmissionsByUser($userId)
+    public function getSubmissionsByUser($formId)
     {
         try {
+            $userId = Auth::id();
+
             $submissions = FormSubmission::with(['form', 'data.field'])
                 ->where('submitted_by', $userId)
+                ->where('form_id', $formId)
                 ->get();
+
+            if ($submissions->isEmpty()) {
+                return $this->successResponse([], 'No submissions found');
+            }
 
             $groupedData = $this->formatAndGroupSubmissions($submissions);
 
-            // Return the first group, as per your original logic's output
-            $response = $groupedData->first();
-
-            return $this->successResponse($response, 'Submissions retrieved successfully');
+            return $this->successResponse($groupedData, 'Submissions retrieved successfully');
         } catch (\Exception $e) {
             return $this->serverErrorResponse('Failed to retrieve submissions', $e->getMessage());
         }
