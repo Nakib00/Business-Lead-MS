@@ -21,7 +21,7 @@ class DashboardController extends Controller
             return $this->unauthorizedResponse('Unauthorized');
         }
 
-        if ($user->type === 'super_admin') {
+        if ($user->type === 'superadmin') {
             // Global Counts
             $totalAdmins = \App\Models\User::where('type', 'admin')->count();
             $totalFormTemplates = \App\Models\Form::whereNotNull('super_admin_id')->count();
