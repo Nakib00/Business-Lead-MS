@@ -380,6 +380,7 @@ class FormSubmissionController extends Controller
                 'field_id'   =>  $submission->id,
                 'field_type' => 'dropdown',
                 'value'      => $submission->status,
+                'label'      => 'Status',
             ]);
 
             // Append meta info at the end
