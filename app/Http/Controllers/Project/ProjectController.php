@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Requests\Project;
+
 namespace App\Http\Controllers\Project;
 
 use App\Http\Controllers\Controller;
@@ -196,8 +197,6 @@ class ProjectController extends Controller
                 return $this->unauthorizedResponse('Login required');
             }
 
-            $effectiveAdminId = $user->reg_user_id ?: $user->id;
-
             $request->validate([
                 'limit'      => ['nullable', 'integer', 'min:1', 'max:100'],
                 'page'       => ['nullable', 'integer', 'min:1'],
@@ -233,11 +232,37 @@ class ProjectController extends Controller
                     'priority',
                     'project_thumbnail',
                     'admin_id',
-                ])
-                ->where('admin_id', $effectiveAdminId)
-                ->with([
-                    'users:id,name,profile_image',
-                ])
+                ]);
+
+            // Role-based filtering
+            switch ($user->type) {
+                case 'admin':
+                    $query->where('admin_id', $user->id);
+                    break;
+                case 'leader':
+                    // Leader sees projects of their registered admin
+                    $query->where('admin_id', $user->reg_user_id);
+                    break;
+                case 'member':
+                    // Member sees projects they are assigned to
+                    $query->whereHas('users', function ($q) use ($user) {
+                        $q->where('users.id', $user->id);
+                    });
+                    break;
+                case 'client':
+                    // Client sees projects assigned to them
+                    $query->where('client_id', $user->id);
+                    break;
+                default:
+                    // Fallback: Show nothing or handle strictly? 
+                    // Let's assume unauthorized / empty list for unknown types
+                    $query->whereRaw('0 = 1');
+                    break;
+            }
+
+            $query->with([
+                'users:id,name,profile_image',
+            ])
                 ->withCount([
                     'tasks as total_tasks',
                     'tasks as completed_tasks' => function ($q) {
