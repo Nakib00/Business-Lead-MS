@@ -349,9 +349,17 @@ class FormSubmissionController extends Controller
                 'field_id'   => $field->id,
                 'field_type' => $field->field_type,
                 'label'      => $field->label,
-                'status'     => 0,
             ];
-        })->values();
+        });
+
+        // Add Status Column
+        $formColumns->push([
+            'field_id'   => 'status',
+            'field_type' => 'dropdown',
+            'label'      => 'Status',
+        ]);
+
+        $formColumns = $formColumns->values();
 
         // Submission data
         $submissionData = $submissions->map(function ($submission) {
@@ -366,6 +374,13 @@ class FormSubmissionController extends Controller
                     'value'      => $value,
                 ];
             });
+
+            // Append Status Data
+            $dataItems->push([
+                'field_id'   => 'status',
+                'field_type' => 'dropdown',
+                'value'      => $submission->status,
+            ]);
 
             // Append meta info at the end
             $dataItems->push([
