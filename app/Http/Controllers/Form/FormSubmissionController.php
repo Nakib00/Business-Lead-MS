@@ -377,7 +377,7 @@ class FormSubmissionController extends Controller
 
             // Append Status Data
             $dataItems->push([
-                'field_id'   => 'status',
+                'field_id'   =>  $submission->id,
                 'field_type' => 'dropdown',
                 'value'      => $submission->status,
             ]);
