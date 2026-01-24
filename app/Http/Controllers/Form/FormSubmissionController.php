@@ -66,7 +66,7 @@ class FormSubmissionController extends Controller
             $submission = FormSubmission::with(['form', 'data.field'])->findOrFail($submissionId);
 
             // The entire formatting logic for a single submission is now in the helper
-            $formattedData = $this->formatSubmission($submission);
+            $formattedData = $this->formatAndGroupSubmissions(collect([$submission]));
 
             return $this->successResponse($formattedData, 'Submission retrieved successfully');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -287,7 +287,7 @@ class FormSubmissionController extends Controller
             $updatedSubmission = FormSubmission::with(['form', 'data.field'])->findOrFail($submissionId);
 
             // Use the formatter to ensure a consistent response
-            $formattedData = $this->formatSubmission($updatedSubmission);
+            $formattedData = $this->formatAndGroupSubmissions(collect([$updatedSubmission]));
 
             return $this->successResponse($formattedData, 'Submission updated successfully');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -349,6 +349,7 @@ class FormSubmissionController extends Controller
                 'field_id'   => $field->id,
                 'field_type' => $field->field_type,
                 'label'      => $field->label,
+                'status'     => 0,
             ];
         })->values();
 
@@ -385,47 +386,6 @@ class FormSubmissionController extends Controller
             'description'    => $form->description,
             'form_columns'   => $formColumns,
             'submissiondata' => $submissionData,
-        ];
-    }
-
-
-    /**
-     * Helper method to format a single FormSubmission object into the desired array structure.
-     *
-     * @param \App\Models\FormSubmission $submission
-     * @return array
-     */
-    private function formatSubmission(FormSubmission $submission)
-    {
-        return [
-            'id' => $submission->id,
-            'form_id' => $submission->form_id,
-            'submitted_by' => $submission->submitted_by,
-            'created_at' => $submission->created_at->toIso8601String(),
-            'updated_at' => $submission->updated_at->toIso8601String(),
-            'admin_id' => $submission->admin_id,
-            'status' => $submission->status,
-            'title' => $submission->form->title,
-            'description' => $submission->form->description,
-            'submissiondata' => $submission->data->map(function ($data) {
-                $value = $data->value;
-                if ($data->value && in_array($data->field->field_type, ['file', 'image'])) {
-                    $value = 'https://hubbackend.desklago.com/storage/app/public/' . $data->value;
-                }
-                return [
-                    'id' => $data->id,
-                    'submission_id' => $data->submission_id,
-                    'field_id' => $data->field_id,
-                    'field_type' => $data->field->field_type,
-                    'label' => $data->field->label,
-                    'is_required' => $data->field->is_required,
-                    'options' => $data->field->options,
-                    'field_order' => $data->field->field_order,
-                    'value' => $value,
-                    'created_at' => $data->created_at->toIso8601String(),
-                    'updated_at' => $data->updated_at->toIso8601String(),
-                ];
-            })->values()
         ];
     }
 }
