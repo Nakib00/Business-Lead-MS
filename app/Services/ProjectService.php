@@ -31,7 +31,6 @@ class ProjectService
             $payload = [
                 'project_code'        => 'PRJ-' . Str::upper(Str::random(6)),
                 'project_name'        => $data['project_name'],
-                'client_name'         => $data['client_name'] ?? null,
                 'project_description' => $data['project_description'] ?? null,
                 'priority'            => $data['priority'],
                 'category'            => $data['category'] ?? null,
