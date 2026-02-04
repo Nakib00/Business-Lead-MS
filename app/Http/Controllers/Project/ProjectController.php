@@ -399,7 +399,7 @@ class ProjectController extends Controller
                 'id'                   => $project->id,
                 'project_code'         => $project->project_code,
                 'project_name'         => $project->project_name,
-                'client_name'          => $project->client_name,
+                'client_id'            => $project->client_id,
                 'project_description'  => $project->project_description,
                 'category'             => $project->category,
                 'priority'             => $project->priority,
