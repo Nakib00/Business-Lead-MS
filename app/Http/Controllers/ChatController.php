@@ -62,12 +62,21 @@ class ChatController extends Controller
     {
         $user = $request->user();
 
-        // Admin can chat with their staff, members, clients
-        // Staff/Member/Client can chat with their admin and peers
+        // Determine the "Organization ID" (the Admin's ID)
+        // If reg_user_id is null, this user is the Admin.
+        // If reg_user_id is set, that is the Admin's ID.
+        $organizationId = $user->reg_user_id ?? $user->id;
+
+        // Fetch users who belong to the same organization:
+        // 1. Users whose reg_user_id matches our organizationId (Siblings/Children)
+        // 2. The Admin user themselves (id == organizationId)
+        // 3. Exclude the current user
         $users = User::where('id', '!=', $user->id)
-            ->where('reg_user_id', $user->reg_user_id)
-            ->orWhere('id', $user->reg_user_id)
-            ->select('id', 'name', 'email', 'type', 'profile_image')
+            ->where(function ($query) use ($organizationId) {
+                $query->where('reg_user_id', $organizationId)
+                    ->orWhere('id', $organizationId);
+            })
+            ->select('id', 'name', 'email', 'type', 'profile_image', 'reg_user_id')
             ->get();
 
         return response()->json($users);
