@@ -172,8 +172,7 @@ class TaskController extends Controller
             if ($task->wasChanged()) {
                 return $this->successResponse($task, 'Task updated');
             }
-            return $this->successResponse($task, 'No changes'); // Or 'Task updated' to behave identically if desired
-
+            return $this->successResponse($task);
         } catch (\Throwable $e) {
             return $this->serverErrorResponse('Failed to update task', $e->getMessage());
         }
