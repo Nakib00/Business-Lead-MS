@@ -4,13 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Email\VerificationController;
-use App\Http\Controllers\ChatController;
 
-Route::middleware('auth:api')->group(function () {
-    Route::get('/chat/firebase-token', [ChatController::class, 'getFirebaseToken']);
-    Route::post('/chat/start', [ChatController::class, 'startConversation']);
-    Route::get('/chat/users', [ChatController::class, 'chatableUsers']);
-});
 
 // Email Verification Routes
 Route::get('/email/verify/{id}/{hash}', [VerificationController::class, 'verify'])
